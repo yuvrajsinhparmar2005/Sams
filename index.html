@@ -111,7 +111,7 @@
             // If "Remember Me" is active and the 30-day timer hasn't expired
             if (isRemembered === 'true' && loginExpiry && now < parseInt(loginExpiry)) {
                 console.log("Auto-login active. Redirecting...");
-                window.location.href = "dashboard.php";
+                window.location.href = "dashboard.html";
             } else if (loginExpiry && now >= parseInt(loginExpiry)) {
                 // If expired, clear the old data
                 localStorage.removeItem('rememberUser');
@@ -146,8 +146,8 @@
                     localStorage.removeItem('loginExpiry');
                 }
 
-                // Redirect to dashboard.php
-                window.location.href = "dashboard.php";
+                // Redirect to dashboard.html
+                window.location.href = "dashboard.html";
                 
             } else {
                 // Show error message
