@@ -20,11 +20,11 @@
             --white: #ffffff;
             --excel-red: #e11d48;
             --success-bg: #f5f3ff;
-            --success-border: #8b5cf6;
         }
 
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; }
 
+        /* Sidebar */
         .sidebar { width: 260px; background-color: var(--secondary); height: 100vh; color: white; position: fixed; z-index: 100; display: flex; flex-direction: column; }
         .sidebar-header { padding: 40px 20px; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 3px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
         .nav-links { list-style: none; padding: 25px 0; margin: 0; flex-grow: 1; }
@@ -34,31 +34,26 @@
         .nav-links li.active a { color: white; }
         .nav-links i { margin-right: 15px; font-size: 18px; width: 25px; text-align: center; }
 
+        /* Main Content */
         .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; width: calc(100% - 260px); box-sizing: border-box; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 
         .btn-upload { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
         .btn-clear { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-left: 10px; font-size: 13px; }
         
-        .dropdown { position: relative; display: inline-block; }
-        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 240px; box-shadow: 0px 8px 16px rgba(0,0,0,0.1); z-index: 1000; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
-        .dropdown-content a { color: #1e293b; padding: 12px 16px; text-decoration: none; display: block; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
-        .dropdown-content a:hover { background-color: #f8fafc; color: var(--primary); }
-        .show { display: block; }
-
-        .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: auto; max-height: 70vh; border: 1px solid #e2e8f0; }
+        /* Table Styles */
+        .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: auto; max-height: 75vh; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1200px; }
+        thead th { position: sticky; top: 0; z-index: 20; padding: 14px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: white; }
+        .th-audit { background-color: #1e1b4b; } 
+        .th-scan { background-color: #6366f1; }  
+        .th-excel { background-color: #4338ca; } 
+        tbody td { padding: 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; white-space: nowrap; color: #334155; }
         
-        thead th { position: sticky; top: 0; z-index: 20; padding: 14px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; color: white; white-space: nowrap; }
-        .th-audit { background-color: #1e1b4b !important; } 
-        .th-scan { background-color: #6366f1 !important; }  
-        .th-excel { background-color: #4338ca !important; } 
-
-        tbody td { padding: 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; white-space: nowrap; }
         .row-matched { background-color: var(--success-bg) !important; }
         .mapped-badge { background: #6d28d9; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
 
-        .upload-card { background: white; padding: 40px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 30px; }
+        .upload-card { background: white; padding: 60px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 30px; }
     </style>
 </head>
 <body>
@@ -67,8 +62,8 @@
     <div class="sidebar-header">SAMS</div>
     <ul class="nav-links">
         <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-        <li><a href="TVManualAudit.html"><i class="fas fa-edit"></i> True Value Manual Audit</a></li>
-        <li class="active"><a href="TVAdminStockAudit.html"><i class="fas fa-file-invoice"></i> True Value Admin Audit</a></li>
+        <li><a href="TVManualAudit.html"><i class="fas fa-edit"></i> Manual Audit</a></li>
+        <li class="active"><a href="#"><i class="fas fa-file-invoice"></i> Admin Audit</a></li>
     </ul>
 </aside>
 
@@ -79,35 +74,23 @@
             <p style="margin:5px 0 0; color: #64748b;">Sync Status: <span id="syncStatus" style="font-weight: 700; color: var(--excel-red);">Waiting...</span></p>
         </div>
         <div>
-            <button class="btn-upload" style="background: #8b5cf6;" onclick="refreshTable()">
+            <button class="btn-upload" style="background: #8b5cf6;" onclick="loadTVScans()">
                 <i class="fas fa-sync-alt"></i> Refresh DB
             </button>
-
-            <div class="dropdown">
-                <button class="btn-upload" style="background: #4f46e5;" onclick="toggleDownloadMenu()">
-                    <i class="fas fa-download"></i> Export <i class="fas fa-caret-down"></i>
-                </button>
-                <div id="downloadMenu" class="dropdown-content">
-                    <a href="#" onclick="exportData('full')">Full True Value Report</a>
-                    <a href="#" onclick="exportData('mapped')">Matched Plates Only</a>
-                    <a href="#" onclick="exportData('unmatched')">Unmatched DB Entries</a>
-                </div>
-            </div>
-
-            <button class="btn-clear" onclick="clearData()">Clear Excel</button>
+            <button class="btn-clear" onclick="clearExcel()">Clear Excel</button>
         </div>
     </header>
 
     <div class="upload-card" id="uploadCard">
         <i class="fas fa-file-excel" style="font-size: 48px; color: #4f46e5; margin-bottom: 15px;"></i>
-        <h3>Upload True Value Master Sheet</h3>
-        <p id="fileInfo" style="color: #64748b;">Ensure your Excel has a "Registration No" or "Reg No" column.</p>
+        <h3>Upload Master Sheet</h3>
+        <p style="color: #64748b;">Click below to select your Excel file.</p>
         <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
         <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Select Excel File</button>
     </div>
 
     <div class="table-wrapper">
-        <table id="auditGrid">
+        <table>
             <thead>
                 <tr>
                     <th class="th-audit">Status</th> 
@@ -122,7 +105,7 @@
                 </tr>
             </thead>
             <tbody id="tableBody">
-                <tr><td colspan="9" style="text-align: center; padding: 60px; color: #94a3b8;">Upload TV master data to begin mapping.</td></tr>
+                <tr><td colspan="9" style="text-align: center; padding: 60px; color: #94a3b8;">No data loaded.</td></tr>
             </tbody>
         </table>
     </div>
@@ -138,144 +121,102 @@
         messagingSenderId: "829551028089",
         appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
     let tvScans = [];
 
-    // --- 2. FETCH DATA ---
+    // --- 2. LOAD DB DATA ---
     async function loadTVScans() {
+        document.getElementById('syncStatus').innerText = "Syncing...";
         try {
             const snapshot = await db.collection('audit_scans').get();
             tvScans = snapshot.docs.map(doc => {
-                const data = doc.data();
+                const d = doc.data();
                 return {
-                    plate: String(data.plateNumber || '').trim().toUpperCase(),
-                    method: data.method || "Manual",
-                    auditor: data.scannedBy || "Unknown",
-                    time: data.timestamp && data.timestamp.toDate ? data.timestamp.toDate().toLocaleString() : 'N/A'
+                    plate: String(d.plateNumber || '').trim().toUpperCase().replace(/\s/g, ''),
+                    method: d.method || "Manual",
+                    auditor: d.scannedBy || "User",
+                    time: d.timestamp ? d.timestamp.toDate().toLocaleString() : 'N/A'
                 };
             });
-            
             document.getElementById('syncStatus').innerText = "DB Synced!";
             document.getElementById('syncStatus').style.color = "#10b981";
-            renderStoredData();
+            
+            // Re-render if excel is already in memory
+            const stored = localStorage.getItem('tvAuditData');
+            if (stored) renderTable(JSON.parse(stored));
         } catch (err) {
-            console.error(err);
             document.getElementById('syncStatus').innerText = "Sync Error";
         }
     }
 
-    // --- 3. DYNAMIC RENDERING (FIXED REG NO LOGIC) ---
-    function renderTable(jsonData) {
-        const tableBody = document.getElementById('tableBody');
-        if (!jsonData || jsonData.length === 0) return;
+    // --- 3. THE "ULTIMATE" TABLE RENDERER ---
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        if (!data || data.length === 0) return;
 
-        tableBody.innerHTML = ''; 
+        tbody.innerHTML = '';
         document.getElementById('uploadCard').style.display = "none";
 
-        jsonData.forEach(row => {
-            // Find the Registration key dynamically (fixes the empty column issue)
+        data.forEach(row => {
             const keys = Object.keys(row);
-            const regKey = keys.find(k => {
-                const cleanKey = k.toLowerCase().replace(/[^a-z]/g, '');
-                return cleanKey.includes('registrationno') || 
-                       cleanKey.includes('regno') || 
-                       cleanKey.includes('plateno') ||
-                       cleanKey.includes('platenumber');
-            });
             
-            const regNo = regKey ? String(row[regKey]).trim().toUpperCase() : 'N/A';
-            const match = tvScans.find(s => s.plate === regNo && regNo !== 'N/A' && regNo !== "");
-            
+            // Helper to find column regardless of typos/spaces
+            const getVal = (possibleNames) => {
+                const foundKey = keys.find(k => {
+                    const cleanK = k.toLowerCase().replace(/[^a-z]/g, '');
+                    return possibleNames.some(name => cleanK.includes(name));
+                });
+                return foundKey ? row[foundKey] : '';
+            };
+
+            const regNoRaw = getVal(['registrationno', 'regno', 'plateno', 'vehicleno']);
+            const regNoFormatted = String(regNoRaw).trim().toUpperCase();
+            const regNoForMatch = regNoFormatted.replace(/\s/g, ''); // Remove spaces for matching
+
+            const match = tvScans.find(s => s.plate === regNoForMatch && regNoForMatch !== "");
+
             const tr = document.createElement('tr');
-            if (match) tr.className = 'row-matched';
-            
+            if (match) tr.classList.add('row-matched');
+
             tr.innerHTML = `
                 <td style="text-align:center">${match ? '<span class="mapped-badge">MATCHED</span>' : '---'}</td>
                 <td>${match ? match.method : '---'}</td>
                 <td>${match ? match.time : '---'}</td>
                 <td>${match ? match.auditor : '---'}</td>
-                <td style="font-weight:700; color: #1e293b;">${regNo}</td>
-                <td>${row['Model'] || ''}</td>
-                <td>${row['Color'] || ''}</td>
-                <td>${row['Year'] || ''}</td>
-                <td>${row['Valuation Price'] || ''}</td>
+                <td style="font-weight:700;">${regNoFormatted || '---'}</td>
+                <td>${getVal(['model', 'variant'])}</td>
+                <td>${getVal(['color', 'colour'])}</td>
+                <td>${getVal(['year', 'mfg'])}</td>
+                <td>${getVal(['valuation', 'price', 'amt'])}</td>
             `;
-            tableBody.appendChild(tr);
+            tbody.appendChild(tr);
         });
     }
 
-    function renderStoredData() {
-        const stored = localStorage.getItem('tvAuditExcelData');
-        if (stored) renderTable(JSON.parse(stored));
-    }
+    // --- 4. EXCEL UPLOAD HANDLER ---
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const wb = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+            const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            localStorage.setItem('tvAuditData', JSON.stringify(jsonData));
+            renderTable(jsonData);
+        };
+        reader.readAsArrayBuffer(file);
+    });
 
-    // --- 4. EXPORT & ACTIONS ---
-    function toggleDownloadMenu() { document.getElementById("downloadMenu").classList.toggle("show"); }
-
-    window.onclick = function(event) {
-        if (!event.target.matches('.btn-upload')) {
-            var dropdowns = document.getElementsByClassName("dropdown-content");
-            for (var i = 0; i < dropdowns.length; i++) {
-                var openDropdown = dropdowns[i];
-                if (openDropdown.classList.contains('show')) {
-                    openDropdown.classList.remove('show');
-                }
-            }
+    function clearExcel() {
+        if(confirm("Clear data?")) {
+            localStorage.removeItem('tvAuditData');
+            location.reload();
         }
-    }
-
-    function exportData(type) {
-        const stored = localStorage.getItem('tvAuditExcelData');
-        const excelData = stored ? JSON.parse(stored) : [];
-        if (excelData.length === 0) return alert("No data to export.");
-
-        let exportArray = [];
-        if (type === 'full') {
-            exportArray = excelData.map(row => {
-                const keys = Object.keys(row);
-                const regKey = keys.find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('regno'));
-                const reg = regKey ? String(row[regKey]).trim().toUpperCase() : '';
-                const match = tvScans.find(s => s.plate === reg);
-                return { ...row, "Audit_Status": match ? "FOUND" : "MISSING", "Audit_Time": match ? match.time : "" };
-            });
-        }
-
-        const ws = XLSX.utils.json_to_sheet(exportArray);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "TV_Audit");
-        XLSX.writeFile(wb, `TV_Audit_${type}.xlsx`);
-    }
-
-    function clearData() { 
-        if(confirm("Are you sure you want to clear current data?")) { 
-            localStorage.removeItem('tvAuditExcelData'); 
-            location.reload(); 
-        } 
-    }
-
-    function refreshTable() { 
-        document.getElementById('syncStatus').innerText = "Syncing...";
-        loadTVScans(); 
     }
 
     window.onload = loadTVScans;
-
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                localStorage.setItem('tvAuditExcelData', JSON.stringify(jsonData));
-                renderTable(jsonData);
-            } catch (err) {
-                alert("Error reading Excel file. Check format.");
-            }
-        };
-        reader.readAsArrayBuffer(e.target.files[0]);
-    });
 </script>
+
 </body>
 </html>
