@@ -3,342 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMS | Admin Stock Audit</title>
+    <title>SAMS | Stock Audit Logs</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
         :root {
             --primary: #2563eb;
-            --secondary: #0f172a;
+            --sidebar-bg: #0f172a;
             --bg: #f1f5f9;
             --white: #ffffff;
-            --excel-red: #e11d48;
-            --success-bg: #dcfce7;
-            --success-border: #22c55e;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
         }
 
-        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; color: var(--text-main); }
 
-        /* Sidebar Styling */
-        .sidebar { width: 260px; background-color: var(--secondary); height: 100vh; color: white; position: fixed; z-index: 100; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); }
+        /* Sidebar Styles */
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); height: 100vh; color: white; position: fixed; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); z-index: 100; }
         .sidebar-header { padding: 40px 20px; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 3px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
         .nav-links { list-style: none; padding: 25px 0; margin: 0; flex-grow: 1; }
         .nav-links li { margin: 8px 15px; border-radius: 12px; }
-        .nav-links a { text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500; transition: 0.3s; }
+        .nav-links a { text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500; }
         .nav-links li.active { background-color: var(--primary); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
         .nav-links li.active a { color: white; }
-        .nav-links i { margin-right: 15px; font-size: 18px; width: 25px; text-align: center; }
+        .nav-links i { margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8; }
 
-        /* Main Content */
-        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; width: calc(100% - 260px); box-sizing: border-box; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 
-        /* Controls & Dropdown */
-        .btn-upload { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-clear { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-left: 10px; font-size: 13px; }
+        /* Table Design */
+        .table-container { background: var(--white); padding: 30px; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 10px; min-width: 900px; }
+        th { text-align: left; padding: 10px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 15px; background: #fcfcfc; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: middle; }
         
-        .dropdown { position: relative; display: inline-block; }
-        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 240px; box-shadow: 0px 8px 16px rgba(0,0,0,0.1); z-index: 1000; border-radius: 8px; margin-top: 5px; border: 1px solid #e2e8f0; overflow: hidden; }
-        .dropdown-content a { color: #1e293b; padding: 12px 16px; text-decoration: none; display: block; font-size: 13px; transition: 0.2s; border-bottom: 1px solid #f1f5f9; }
-        .dropdown-content a:hover { background-color: #f8fafc; color: var(--primary); }
-        .show { display: block; }
+        td:first-child { border-left: 1px solid #f1f5f9; border-radius: 12px 0 0 12px; }
+        td:last-child { border-right: 1px solid #f1f5f9; border-radius: 0 12px 12px 0; }
 
-        /* Table Architecture */
-        .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: auto; max-height: 70vh; border: 1px solid #e2e8f0; }
-        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 2600px; }
-        
-        thead th { position: sticky; top: 0; z-index: 20; padding: 14px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; color: white; white-space: nowrap; }
-        .th-audit { background-color: #0f172a !important; } 
-        .th-scan { background-color: #2563eb !important; }  
-        .th-excel { background-color: #e11d48 !important; } 
+        /* Badges & Images */
+        .method-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #e2e8f0; color: #475569; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .status-mapped { background: #dcfce7; color: #166534; }
+        .status-unmapped { background: #fee2e2; color: #991b1b; }
 
-        tbody td { padding: 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; white-space: nowrap; }
-        tbody tr:hover { background-color: #f8fafc; }
+        .audit-img { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; cursor: pointer; transition: 0.2s; }
+        .audit-img:hover { transform: scale(1.1); border-color: var(--primary); }
 
-        .row-matched { background-color: var(--success-bg) !important; }
-        .row-matched td { border-color: var(--success-border); color: #166534; font-weight: 500; }
-        .mapped-badge { background: #166534; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        .btn-refresh { 
+            padding: 8px 16px; border-radius: 8px; border: none; 
+            background: var(--primary); color: white; cursor: pointer; font-weight: 600; 
+            display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;
+        }
+        .btn-refresh:hover { background: #1d4ed8; }
 
-        .upload-card { background: white; padding: 40px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 30px; }
+        #loading { text-align: center; padding: 50px; color: var(--primary); }
     </style>
 </head>
+
 <body>
+    <aside class="sidebar">
+        <div class="sidebar-header">SAMS</div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="StockIn-Out.html"><i class="fas fa-exchange-alt"></i> Stock In & Out</a></li>
+            <li class="active"><a href="StockAudit.html"><i class="fas fa-clipboard-check"></i> Stock Audit</a></li>
+            <div style="padding: 10px 30px; font-size: 11px; text-transform: uppercase; color: #475569; font-weight: 700; letter-spacing: 1px; margin-top: 20px;">Administration</div>
+            <li><a href="AdminStockAudit.html"><i class="fas fa-user-shield"></i> Admin Audit</a></li>
+            <li><a href="TVAdminStockAudit.html"><i class="fas fa-user-shield"></i> True Value Admin Audit</a></li>
+            <li><a href="Barcode.html"><i class="fas fa-barcode"></i> Barcode Download</a></li>
+            <li><a href="UserAccess.html"><i class="fas fa-users-cog"></i> User Access</a></li>
+        </ul>
+    </aside>
 
-<aside class="sidebar">
-    <div class="sidebar-header">SAMS</div>
-    <ul class="nav-links">
-        <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-        <li><a href="StockIn-Out.html"><i class="fas fa-exchange-alt"></i> Stock In & Out</a></li>
-        <li><a href="StockAudit.html"><i class="fas fa-clipboard-check"></i> Stock Audit</a></li>
-        <div style="padding: 10px 30px; font-size: 11px; text-transform: uppercase; color: #475569; font-weight: 700; letter-spacing: 1px; margin-top: 20px;">Administration</div>
-        <li class="active"><a href="AdminStockAudit.html"><i class="fas fa-user-shield"></i> Admin Audit</a></li>
-         <li style="margin: 8px 15px; border-radius: 12px;">
-            <a href="TVAdminStockAudit.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;">
-                <i class="fas fa-user-shield" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i> 
-               True Value Admin Audit
-            </a>
-        </li>
-        <li style="margin: 8px 15px; border-radius: 12px; ">
-            <a href="Barcode.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;">
-                <i class="fas fa-barcode" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center;"></i> 
-                Barcode Download
-            </a>
-        </li>
-        <li><a href="UserAccess.html"><i class="fas fa-users-cog"></i> User Access</a></li>
-    </ul>
-</aside>
-
-<main class="main-content">
-    <header>
-        <div>
-            <h1 style="margin:0; font-size: 24px; color: #0f172a;">Admin Stock Audit Mapping</h1>
-            <p style="margin:5px 0 0; color: #64748b;">Status: <span id="syncStatus" style="font-weight: 700; color: var(--excel-red);">Waiting for Scans...</span></p>
-        </div>
-        <div>
-            <button class="btn-upload" style="background: #10b981;" onclick="refreshTable()">
-                <i class="fas fa-sync-alt"></i> Refresh Scans
-            </button>
-
-            <div class="dropdown">
-                <button class="btn-upload" style="background: #6366f1;" onclick="toggleDownloadMenu()">
-                    <i class="fas fa-download"></i> Export Report <i class="fas fa-caret-down"></i>
-                </button>
-                <div id="downloadMenu" class="dropdown-content">
-                    <a href="#" onclick="exportData('full')"><i class="fas fa-file-excel"></i> Full Inventory Report</a>
-                    <a href="#" onclick="exportData('mapped')"><i class="fas fa-check-circle"></i> Mapped Scans Only</a>
-                    <a href="#" onclick="exportData('unmatched')"><i class="fas fa-exclamation-triangle"></i> Scans Not in Excel</a>
-                </div>
+    <main class="main-content">
+        <div class="header-flex">
+            <div>
+                <h1 style="margin:0;">Stock Audit Logs</h1>
+                <p style="color: var(--text-muted);">View physical verification records (Sorted: Mapped first)</p>
             </div>
-
-            <button class="btn-clear" onclick="clearData()">
-                <i class="fas fa-trash"></i> Clear Data
-            </button>
+            <button class="btn-refresh" onclick="fetchAuditData()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
         </div>
-    </header>
 
-    <div class="upload-card" id="uploadCard">
-        <i class="fas fa-file-excel" style="font-size: 48px; color: #10b981; margin-bottom: 15px;"></i>
-        <h3>Upload Master Inventory</h3>
-        <p id="fileInfo" style="color: #64748b;">No master file loaded. Select an Excel file to start audit mapping.</p>
-        <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
-        <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Select Excel File</button>
-    </div>
+        <section class="table-container">
+            <div id="loading"><i class="fas fa-circle-notch fa-spin fa-2x"></i></div>
+            <table id="audit-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Asset ID / Status</th>
+                        <th>Auditor</th>
+                        <th>Location (Branch)</th>
+                        <th>Method</th>
+                        <th>Audit Proof</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </section>
+    </main>
 
-    <div class="table-wrapper">
-        <table id="auditGrid">
-            <thead>
-                <tr>
-                    <th class="th-audit">Audit Mapping</th> 
-                    <th class="th-scan">Scanned Location</th> 
-                    <th class="th-scan">Scanned Time</th> 
-                    <th class="th-excel">SNO</th>
-                    <th class="th-excel">Outlet Name</th>
-                    <th class="th-excel">Model</th>
-                    <th class="th-excel">SubModel Code</th>
-                    <th class="th-excel">SubModel</th>
-                    <th class="th-excel">Color Code</th>
-                    <th class="th-excel">Color</th>
-                    <th class="th-excel">Fuel Type</th>
-                    <th class="th-excel">Chassis Prefix</th>
-                    <th class="th-excel">VIN No.</th>
-                    <th class="th-excel">Chassis Number</th>
-                    <th class="th-excel">Engine Number</th>
-                    <th class="th-excel">Current Status</th>
-                    <th class="th-excel">Quality Status</th>
-                    <th class="th-excel">Manuf. Fin. Date</th>
-                    <th class="th-excel">Stock Location</th>
-                    <th class="th-excel">Assigned Location</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <tr><td colspan="20" style="text-align: center; padding: 60px; color: #94a3b8;">Master inventory data will appear here after upload.</td></tr>
-            </tbody>
-        </table>
-    </div>
-</main>
-
-<script>
-    // --- 1. FIREBASE CONFIG ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
-        authDomain: "sams-e7c4b.firebaseapp.com",
-        projectId: "sams-e7c4b",
-        storageBucket: "sams-e7c4b.firebasestorage.app",
-        messagingSenderId: "829551028089",
-        appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    let scanDetails = [];
-
-    // --- 2. FETCH SCANS ---
-    async function loadFirebaseScans() {
-        try {
-            const snapshot = await db.collection('stock_audit').get();
-            scanDetails = snapshot.docs.map(doc => {
-                const data = doc.data();
-                
-                // Combining City and Branch
-                const city = data.auditLocation_City || "";
-                const branch = data.auditLocation_Branch || "";
-                const combinedLocation = (city && branch) ? `${city} - ${branch}` : (city || branch || "N/A");
-
-                return {
-                    barcode: String(data.barcodeData || '').trim(),
-                    location: combinedLocation,
-                    time: data.formattedDateTime || (data.timestamp && data.timestamp.toDate ? data.timestamp.toDate().toLocaleString() : 'N/A')
-                };
-            });
-            
-            document.getElementById('syncStatus').innerText = "Scans Synced!";
-            document.getElementById('syncStatus').style.color = "#10b981";
-            renderStoredData();
-        } catch (err) {
-            console.error("Firebase Error:", err);
-            document.getElementById('syncStatus').innerText = "Sync Error";
-        }
-    }
-
-    // --- 3. RENDERING ---
-    function renderTable(jsonData) {
-        const tableBody = document.getElementById('tableBody');
-        if (!jsonData || jsonData.length === 0) return;
-
-        tableBody.innerHTML = ''; 
-        document.getElementById('uploadCard').style.display = "none";
-
-        jsonData.forEach(row => {
-            const vin = String(row['VIN No.'] || '').trim();
-            const chassis = String(row['Chassis Number'] || '').trim();
-            
-            const scanMatch = scanDetails.find(s => (s.barcode === vin || s.barcode === chassis) && s.barcode !== "");
-            
-            const rowClass = scanMatch ? 'row-matched' : '';
-            const mappedBadge = scanMatch ? `<span class="mapped-badge"><i class="fas fa-check"></i> ${scanMatch.barcode}</span>` : '---';
-            const scanLoc = scanMatch ? scanMatch.location : '---';
-            const scanTime = scanMatch ? scanMatch.time : '---';
-
-            const tr = document.createElement('tr');
-            tr.className = rowClass;
-            tr.innerHTML = `
-                <td style="text-align:center">${mappedBadge}</td>
-                <td style="font-weight:600; color: #1e293b;">${scanLoc}</td>
-                <td style="font-size:11px; color: #475569;">${scanTime}</td>
-                <td>${row['SNO'] || ''}</td>
-                <td>${row['Outlet Name'] || ''}</td>
-                <td>${row['Model'] || ''}</td>
-                <td>${row['SubMode l Code'] || row['SubMode Code'] || ''}</td>
-                <td>${row['SubModel'] || ''}</td>
-                <td>${row['Color Code'] || ''}</td>
-                <td>${row['Color'] || ''}</td>
-                <td>${row['Fuel Type'] || ''}</td>
-                <td>${row['Chassis Prefix'] || ''}</td>
-                <td style="font-weight:600;">${vin}</td>
-                <td>${chassis}</td>
-                <td>${row['Engine Number'] || ''}</td>
-                <td>${row['Current Status'] || ''}</td>
-                <td>${row['Quality Status'] || ''}</td>
-                <td>${row['Manuf. Fin. Date'] || ''}</td>
-                <td>${row['Stock Location'] || ''}</td>
-                <td>${row['Assigned Location'] || ''}</td>
-            `;
-            tableBody.appendChild(tr);
-        });
-    }
-
-    function renderStoredData() {
-        const stored = localStorage.getItem('auditExcelData');
-        if (stored) {
-            renderTable(JSON.parse(stored));
-            document.getElementById('fileInfo').innerText = "Using locally stored master data.";
-        }
-    }
-
-    // --- 4. EXPORT LOGIC ---
-    function toggleDownloadMenu() {
-        document.getElementById("downloadMenu").classList.toggle("show");
-    }
-
-    window.onclick = function(event) {
-        if (!event.target.closest('.dropdown')) {
-            document.getElementById("downloadMenu").classList.remove('show');
-        }
-    }
-
-    function exportData(type) {
-        const stored = localStorage.getItem('auditExcelData');
-        const excelData = stored ? JSON.parse(stored) : [];
-        let exportArray = [];
-        let fileName = "Report.xlsx";
-
-        if (type === 'full') {
-            exportArray = excelData.map(row => {
-                const vin = String(row['VIN No.'] || '').trim();
-                const chassis = String(row['Chassis Number'] || '').trim();
-                const match = scanDetails.find(s => s.barcode === vin || s.barcode === chassis);
-                return {
-                    ...row,
-                    "Audit_Status": match ? "MATCHED" : "PENDING",
-                    "Scanned_Barcode": match ? match.barcode : "",
-                    "Scanned_Location": match ? match.location : "",
-                    "Scanned_Time": match ? match.time : ""
-                };
-            });
-            fileName = "Full_Audit_Report.xlsx";
-        } 
-        else if (type === 'mapped') {
-            exportArray = excelData.map(row => {
-                const vin = String(row['VIN No.'] || '').trim();
-                const chassis = String(row['Chassis Number'] || '').trim();
-                const match = scanDetails.find(s => s.barcode === vin || s.barcode === chassis);
-                return match ? { ...row, "Scanned_Location": match.location, "Scanned_Time": match.time } : null;
-            }).filter(x => x !== null);
-            fileName = "Mapped_Only.xlsx";
-        } 
-        else if (type === 'unmatched') {
-            const excelVins = excelData.map(r => String(r['VIN No.'] || '').trim());
-            const excelChassis = excelData.map(r => String(r['Chassis Number'] || '').trim());
-            exportArray = scanDetails.filter(s => !excelVins.includes(s.barcode) && !excelChassis.includes(s.barcode))
-                          .map(s => ({ "Barcode_in_DB": s.barcode, "Location": s.location, "Time": s.time }));
-            fileName = "DB_Only_Scans.xlsx";
-        }
-
-        if (exportArray.length === 0) return alert("No data to export.");
-
-        const ws = XLSX.utils.json_to_sheet(exportArray);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Data");
-        XLSX.writeFile(wb, fileName);
-    }
-
-    // --- 5. INITIALIZATION ---
-    function clearData() {
-        if(confirm("Clear master inventory data?")) { localStorage.removeItem('auditExcelData'); location.reload(); }
-    }
-
-    function refreshTable() { loadFirebaseScans(); }
-
-    window.onload = loadFirebaseScans;
-
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            localStorage.setItem('auditExcelData', JSON.stringify(jsonData));
-            renderTable(jsonData);
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+            authDomain: "sams-e7c4b.firebaseapp.com",
+            projectId: "sams-e7c4b",
+            storageBucket: "sams-e7c4b.firebasestorage.app",
+            messagingSenderId: "829551028089",
+            appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
         };
-        reader.readAsArrayBuffer(file);
-    });
-</script>
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function fetchAuditData() {
+            const loading = document.getElementById('loading');
+            const table = document.getElementById('audit-table');
+            const tbody = document.getElementById('table-body');
+
+            loading.style.display = "block";
+            table.style.display = "none";
+            tbody.innerHTML = "";
+
+            try {
+                // 1. Fetch raw data
+                const snap = await db.collection('stock_audit').orderBy('timestamp', 'desc').get();
+                
+                let records = [];
+                snap.forEach(doc => {
+                    records.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 2. Sorting Logic: Mapped (Barcode exists) vs Unmapped
+                records.sort((a, b) => {
+                    const aMapped = (a.barcodeData && a.barcodeData !== "N/A" && a.barcodeData !== "") ? 1 : 0;
+                    const bMapped = (b.barcodeData && b.barcodeData !== "N/A" && b.barcodeData !== "") ? 1 : 0;
+
+                    // Primary Sort: Mapped at top (1), Unmapped at bottom (0)
+                    if (aMapped > bMapped) return -1;
+                    if (aMapped < bMapped) return 1;
+
+                    // Secondary Sort: Newest timestamp first
+                    const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+                    const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+                    return timeB - timeA;
+                });
+
+                // 3. Render Table
+                records.forEach(d => {
+                    const dateObj = d.timestamp ? d.timestamp.toDate() : new Date();
+                    const isMapped = (d.barcodeData && d.barcodeData !== "N/A" && d.barcodeData !== "");
+                    
+                    const row = `
+                        <tr>
+                            <td>
+                                <b>${dateObj.toLocaleDateString()}</b><br>
+                                <span style="font-size:12px; color:var(--text-muted)">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </td>
+                            <td>
+                                <span style="font-family:monospace; font-weight:700; color:var(--primary);">${d.barcodeData || 'No Data'}</span><br>
+                                <span class="status-badge ${isMapped ? 'status-mapped' : 'status-unmapped'}">
+                                    ${isMapped ? 'Mapped' : 'Unmapped'}
+                                </span>
+                            </td>
+                            <td style="font-weight:600;">${d.auditBy_Name || 'System'}</td>
+                            <td>${d.auditLocation_City || '-'}<br><span style="font-size:12px; color:gray;">${d.auditLocation_Branch || '-'}</span></td>
+                            <td><span class="method-badge">${d.entryMethod || 'Scanner'}</span></td>
+                            <td>
+                                <img src="${d.auditPhotoPath}" class="audit-img" 
+                                     onerror="this.src='https://cdn-icons-png.flaticon.com/512/3342/3342137.png'" 
+                                     onclick="window.open(this.src)">
+                            </td>
+                            <td style="max-width:180px; font-size:12px; color:#4b5563;">${d.remarks || '-'}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+
+                loading.style.display = "none";
+                table.style.display = "table";
+
+                if (records.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:30px;'>No audit records found.</td></tr>";
+                }
+
+            } catch (error) {
+                console.error("Firebase Error:", error);
+                loading.innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
+            }
+        }
+
+        window.onload = fetchAuditData;
+    </script>
 </body>
 </html>
