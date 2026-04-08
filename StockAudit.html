@@ -18,21 +18,20 @@
             --white: #ffffff;
             --text-main: #1e293b;
             --text-muted: #64748b;
-            --success: #10b981;
-            --danger: #ef4444;
+            --audit-color: #f59e0b;
         }
 
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; color: var(--text-main); }
 
         /* Sidebar Styles */
-        .sidebar { width: 260px; background-color: var(--sidebar-bg); height: 100vh; color: white; position: fixed; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); z-index: 100; }
-        .sidebar-header { padding: 40px 20px; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 3px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .nav-links { list-style: none; padding: 25px 0; margin: 0; flex-grow: 1; }
-        .nav-links li { margin: 8px 15px; border-radius: 12px; }
-        .nav-links a { text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500; }
-        .nav-links li.active { background-color: var(--primary); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); height: 100vh; color: white; position: fixed; }
+        .sidebar-header { padding: 30px 20px; text-align: center; font-size: 20px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-links { list-style: none; padding: 20px 0; margin: 0; }
+        .nav-links li { margin: 4px 15px; border-radius: 10px; }
+        .nav-links li.active { background: var(--primary); }
+        .nav-links a { text-decoration: none; color: #94a3b8; padding: 14px 15px; display: flex; align-items: center; font-size: 14px; }
         .nav-links li.active a { color: white; }
-        .nav-links i { margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8; }
+        .nav-links i { margin-right: 12px; width: 20px; text-align: center; }
 
         .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; }
         .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
@@ -48,10 +47,6 @@
 
         /* Badges & Images */
         .method-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #e2e8f0; color: #475569; }
-        .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
-        .status-mapped { background: #dcfce7; color: #166534; }
-        .status-unmapped { background: #fee2e2; color: #991b1b; }
-
         .audit-img { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0; cursor: pointer; transition: 0.2s; }
         .audit-img:hover { transform: scale(1.1); border-color: var(--primary); }
 
@@ -60,32 +55,42 @@
             background: var(--primary); color: white; cursor: pointer; font-weight: 600; 
             display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;
         }
-        .btn-refresh:hover { background: #1d4ed8; }
+        .btn-refresh:hover { background: var(--primary-dark); }
 
         #loading { text-align: center; padding: 50px; color: var(--primary); }
     </style>
 </head>
 
 <body>
-    <aside class="sidebar">
-        <div class="sidebar-header">SAMS</div>
-        <ul class="nav-links">
-            <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-            <li><a href="StockIn-Out.html"><i class="fas fa-exchange-alt"></i> Stock In & Out</a></li>
-            <li class="active"><a href="StockAudit.html"><i class="fas fa-clipboard-check"></i> Stock Audit</a></li>
-            <div style="padding: 10px 30px; font-size: 11px; text-transform: uppercase; color: #475569; font-weight: 700; letter-spacing: 1px; margin-top: 20px;">Administration</div>
-            <li><a href="AdminStockAudit.html"><i class="fas fa-user-shield"></i> Admin Audit</a></li>
-            <li><a href="TVAdminStockAudit.html"><i class="fas fa-user-shield"></i> True Value Admin Audit</a></li>
-            <li><a href="Barcode.html"><i class="fas fa-barcode"></i> Barcode Download</a></li>
-            <li><a href="UserAccess.html"><i class="fas fa-users-cog"></i> User Access</a></li>
-        </ul>
-    </aside>
+   <aside style="width: 260px; background-color: #0f172a; height: 100vh; color: white; position: fixed; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1); z-index: 100; font-family: 'Inter', sans-serif;">
+    <div style="padding: 40px 20px; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 3px; color: #ffffff; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">SAMS</div>
+    <ul style="list-style: none; padding: 25px 0; margin: 0; flex-grow: 1;">
+        <li style="margin: 8px 15px; border-radius: 12px;"><a href="dashboard.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;"><i class="fas fa-chart-line" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i> Dashboard</a></li>
+        <li style="margin: 8px 15px; border-radius: 12px;"><a href="StockIn-Out.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;"><i class="fas fa-exchange-alt" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i> Stock In & Out</a></li>
+        <li style="margin: 8px 15px; border-radius: 12px; background-color: #2563eb; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);"><a href="StockAudit.html" style="text-decoration: none; color: white; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;"><i class="fas fa-clipboard-check" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center;"></i> Stock Audit</a></li>
+        <div style="padding: 10px 30px; font-size: 11px; text-transform: uppercase; color: #475569; font-weight: 700; letter-spacing: 1px; margin-top: 20px;">Administration</div>
+        <li style="margin: 8px 15px; border-radius: 12px;"><a href="AdminStockAudit.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;"><i class="fas fa-user-shield" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i> Admin Audit</a></li>
+         <li style="margin: 8px 15px; border-radius: 12px;">
+            <a href="TVAdminStockAudit.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;">
+                <i class="fas fa-user-shield" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i> 
+               True Value Admin Audit
+            </a>
+        </li>
+        <li style="margin: 8px 15px; border-radius: 12px; ">
+            <a href="Barcode.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;">
+                <i class="fas fa-barcode" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center;"></i> 
+                Barcode Download
+            </a>
+        </li>
+        <li style="margin: 8px 15px; border-radius: 12px;"><a href="UserAccess.html" style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;"><i class="fas fa-users-cog" style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i> User Access</a></li>
+    </ul>
+</aside>
 
     <main class="main-content">
         <div class="header-flex">
             <div>
                 <h1 style="margin:0;">Stock Audit Logs</h1>
-                <p style="color: var(--text-muted);">View physical verification records (Sorted: Mapped first)</p>
+                <p style="color: var(--text-muted);">View physical verification records and proof</p>
             </div>
             <button class="btn-refresh" onclick="fetchAuditData()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
         </div>
@@ -96,7 +101,7 @@
                 <thead>
                     <tr>
                         <th>Date & Time</th>
-                        <th>Asset ID / Status</th>
+                        <th>Asset ID</th>
                         <th>Auditor</th>
                         <th>Location (Branch)</th>
                         <th>Method</th>
@@ -132,33 +137,12 @@
             tbody.innerHTML = "";
 
             try {
-                // 1. Fetch raw data
+                // Fetch from your 'stock_audit' collection
                 const snap = await db.collection('stock_audit').orderBy('timestamp', 'desc').get();
                 
-                let records = [];
                 snap.forEach(doc => {
-                    records.push({ id: doc.id, ...doc.data() });
-                });
-
-                // 2. Sorting Logic: Mapped (Barcode exists) vs Unmapped
-                records.sort((a, b) => {
-                    const aMapped = (a.barcodeData && a.barcodeData !== "N/A" && a.barcodeData !== "") ? 1 : 0;
-                    const bMapped = (b.barcodeData && b.barcodeData !== "N/A" && b.barcodeData !== "") ? 1 : 0;
-
-                    // Primary Sort: Mapped at top (1), Unmapped at bottom (0)
-                    if (aMapped > bMapped) return -1;
-                    if (aMapped < bMapped) return 1;
-
-                    // Secondary Sort: Newest timestamp first
-                    const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
-                    const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
-                    return timeB - timeA;
-                });
-
-                // 3. Render Table
-                records.forEach(d => {
+                    const d = doc.data();
                     const dateObj = d.timestamp ? d.timestamp.toDate() : new Date();
-                    const isMapped = (d.barcodeData && d.barcodeData !== "N/A" && d.barcodeData !== "");
                     
                     const row = `
                         <tr>
@@ -166,14 +150,9 @@
                                 <b>${dateObj.toLocaleDateString()}</b><br>
                                 <span style="font-size:12px; color:var(--text-muted)">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </td>
-                            <td>
-                                <span style="font-family:monospace; font-weight:700; color:var(--primary);">${d.barcodeData || 'No Data'}</span><br>
-                                <span class="status-badge ${isMapped ? 'status-mapped' : 'status-unmapped'}">
-                                    ${isMapped ? 'Mapped' : 'Unmapped'}
-                                </span>
-                            </td>
-                            <td style="font-weight:600;">${d.auditBy_Name || 'System'}</td>
-                            <td>${d.auditLocation_City || '-'}<br><span style="font-size:12px; color:gray;">${d.auditLocation_Branch || '-'}</span></td>
+                            <td style="font-family:monospace; font-weight:700; color:var(--primary);">${d.barcodeData}</td>
+                            <td style="font-weight:600;">${d.auditBy_Name}</td>
+                            <td>${d.auditLocation_City}<br><span style="font-size:12px; color:gray;">${d.auditLocation_Branch}</span></td>
                             <td><span class="method-badge">${d.entryMethod || 'Scanner'}</span></td>
                             <td>
                                 <img src="${d.auditPhotoPath}" class="audit-img" 
@@ -189,7 +168,7 @@
                 loading.style.display = "none";
                 table.style.display = "table";
 
-                if (records.length === 0) {
+                if (snap.empty) {
                     tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:30px;'>No audit records found.</td></tr>";
                 }
 
