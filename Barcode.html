@@ -13,140 +13,73 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        :root {
-            --primary: #2563eb;
-            --sidebar-bg: #0f172a;
-            --bg: #f1f5f9;
-        }
+        :root { --primary: #2563eb; --sidebar-bg: #0f172a; --bg: #f1f5f9; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); display: flex; }
+        .main-content { margin-left: 260px; padding: 40px; width: 100%; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            background: var(--bg);
-            display: flex;
-        }
-
-        .sidebar {
-            width: 260px;
-            background: var(--sidebar-bg);
-            height: 100vh;
-            color: white;
-            position: fixed;
-        }
-
-        .main-content {
-            margin-left: 260px;
-            padding: 40px;
-            width: 100%;
-        }
-
+        /* Search & Controls Layout */
         .controls {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            background: white; padding: 20px; border-radius: 12px;
+            display: flex; flex-wrap: wrap;
+            gap: 15px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
-        input,
-        select {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
+        .search-wrapper { position: relative; flex-grow: 1; min-width: 300px; }
+        .search-wrapper i { position: absolute; left: 12px; top: 12px; color: #94a3b8; }
+        .search-wrapper input { padding: 10px 10px 10px 35px; width: 100%; box-sizing: border-box; }
 
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.3s;
-        }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
 
-        .btn-add {
-            background: var(--primary);
-            color: white;
-        }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.3s; white-space: nowrap; }
+        .btn-add { background: var(--primary); color: white; }
+        .btn-download { background: #10b981; color: white; }
 
-        .btn-download {
-            background: #10b981;
-            color: white;
-            margin-left: auto;
-        }
+        table { width: 100%; background: white; border-radius: 12px; border-collapse: collapse; overflow: hidden; }
+        th { text-align: left; padding: 15px; background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; }
+        td { padding: 12px 15px; border-top: 1px solid #f1f5f9; font-size: 13px; }
 
-        table {
-            width: 100%;
-            background: white;
-            border-radius: 12px;
-            border-collapse: collapse;
-            overflow: hidden;
-        }
-
-        th {
-            text-align: left;
-            padding: 15px;
-            background: #f8fafc;
-            color: #64748b;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-
-        td {
-            padding: 15px;
-            border-top: 1px solid #f1f5f9;
-        }
-
-        .barcode-svg {
-            width: 120px;
-        }
-
-        .icon-btn {
-            border: 1px solid #eee;
-            padding: 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            background: white;
-            margin-right: 5px;
-        }
-
-        #loading {
-            display: none;
-            color: var(--primary);
-            font-weight: bold;
-            padding: 20px;
-        }
+        .checkbox-col { width: 45px; text-align: center; }
+        .icon-btn { border: 1px solid #eee; padding: 6px; border-radius: 6px; cursor: pointer; background: white; }
+        #loading { display: none; color: var(--primary); font-weight: bold; padding: 10px; }
     </style>
 </head>
 
 <body>
-
     <div id="sidebar-container"></div>
     <main class="main-content">
         <h1>Barcode Batch Generator</h1>
 
         <div class="controls">
             <select id="auditType" onchange="fetchAuditData()">
-                <option value="stock_audit">Stock Audit</option>
-                <option value="tv_stock_audit">TV Stock Audit</option>
+                <option value="stock_audit">General Stock Audit</option>
+                <option value="tv_audit">TV Stock Audit</option>
             </select>
-            <input type="text" id="manualInput" placeholder="Enter Asset ID...">
-            <button class="btn btn-add" onclick="addManualEntry()">Add Asset</button>
-            <button class="btn btn-download" onclick="downloadAllPDF()">Download Grid (PDF)</button>
+            
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="universalSearch" placeholder="Search ID, Auditor, Branch, or City..." onkeyup="applyUniversalSearch()">
+            </div>
+            
+            <input type="text" id="manualInput" placeholder="Manual ID...">
+            <button class="btn btn-add" onclick="addManualEntry()">Add</button>
+            <button class="btn btn-download" onclick="downloadSelectedPDF()">
+                <i class="fas fa-file-pdf"></i> Download Selected
+            </button>
         </div>
 
-        <div id="loading">Connecting to Firebase...</div>
+        <div id="loading"><i class="fas fa-spinner fa-spin"></i> Loading Firestore Data...</div>
 
         <table id="auditTable">
             <thead>
                 <tr>
+                    <th class="checkbox-col"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
                     <th>Asset ID</th>
-                    <th>Source</th>
-                    <th>Preview</th>
-                    <th>Actions</th>
+                    <th>Auditor</th>
+                    <th>Branch / City</th>
+                    <th>Barcode Preview</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="auditBody"></tbody>
@@ -156,7 +89,6 @@
     <canvas id="hiddenCanvas" style="display:none;"></canvas>
 
     <script>
-        // 1. YOUR FIREBASE CONFIG (PASTE YOUR ACTUAL KEYS HERE)
         const firebaseConfig = {
             apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
             authDomain: "sams-e7c4b.firebaseapp.com",
@@ -166,13 +98,11 @@
             appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
         };
 
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const { jsPDF } = window.jspdf;
-        let currentRows = [];
+        let masterDataList = []; 
 
-        // 2. FETCH DATA FROM FIREBASE
         async function fetchAuditData() {
             const type = document.getElementById('auditType').value;
             const loader = document.getElementById('loading');
@@ -180,130 +110,132 @@
 
             loader.style.display = "block";
             tbody.innerHTML = "";
-            currentRows = [];
+            masterDataList = [];
 
             try {
-                const snapshot = await db.collection(type).orderBy('timestamp', 'desc').limit(24).get();
+                const snapshot = await db.collection(type).orderBy('timestamp', 'desc').limit(100).get();
                 snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const assetId = data.barcodeData || data.assetId || data.serialNo || "ID-" + doc.id.substring(0, 5);
-                    renderRow(assetId, "Firestore");
+                    const d = doc.data();
+                    masterDataList.push({
+                        id: d.barcodeData || d.idNumber || "N/A",
+                        auditor: d.auditBy_Name || "System",
+                        branch: d.auditLocation_Branch || "-",
+                        city: d.auditLocation_City || "-",
+                        svgId: `bc-${Math.random().toString(36).substr(2, 9)}`
+                    });
                 });
-            } catch (e) {
-                console.error("Firebase Error:", e);
-            }
+                renderTable();
+            } catch (e) { console.error(e); }
             loader.style.display = "none";
         }
 
-        // 3. ADD MANUAL ENTRY
-        function addManualEntry() {
-            const val = document.getElementById('manualInput').value;
-            if (!val) return alert("Enter Asset ID");
-            renderRow(val, "Manual");
-            document.getElementById('manualInput').value = "";
-        }
-
-        // 4. RENDER TABLE ROW & BARCODE
-        function renderRow(id, source) {
+        function renderTable() {
             const tbody = document.getElementById('auditBody');
-            const uniqueId = `bc-${Math.random().toString(36).substr(2, 9)}`;
-            currentRows.push({ id, svgId: uniqueId });
-
-            const row = document.createElement('tr');
-            row.innerHTML = `
-            <td style="font-weight:700;">${id}</td>
-            <td><span style="color:#64748b; font-size:12px;">${source}</span></td>
-            <td><svg id="${uniqueId}"></svg></td>
-            <td>
-                <button class="icon-btn" onclick="downloadPNG('${uniqueId}', '${id}')"><i class="fas fa-image"></i></button>
-                <button class="icon-btn" onclick="downloadIndividualPDF('${uniqueId}', '${id}')"><i class="fas fa-file-pdf"></i></button>
-            </td>
-        `;
-            tbody.prepend(row);
-
-            JsBarcode(`#${uniqueId}`, id, {
-                format: "CODE128", width: 1.5, height: 40, displayValue: true, fontSize: 12
+            tbody.innerHTML = "";
+            masterDataList.forEach(item => {
+                const row = document.createElement('tr');
+                const searchText = `${item.id} ${item.auditor} ${item.branch} ${item.city}`.toLowerCase();
+                row.setAttribute('data-search', searchText);
+                
+                row.innerHTML = `
+                    <td class="checkbox-col"><input type="checkbox" class="row-check" value="${item.svgId}"></td>
+                    <td style="font-weight:700; color:var(--primary);">${item.id}</td>
+                    <td>${item.auditor}</td>
+                    <td>${item.branch}<br><small>${item.city}</small></td>
+                    <td><svg id="${item.svgId}"></svg></td>
+                    <td>
+                        <button class="icon-btn" onclick="downloadPNG('${item.svgId}', '${item.id}')"><i class="fas fa-image"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+                JsBarcode(`#${item.svgId}`, item.id, { format: "CODE128", width: 1.2, height: 30, displayValue: false });
             });
         }
 
-        // 5. CONVERT SVG TO IMAGE
+        function applyUniversalSearch() {
+            const val = document.getElementById('universalSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#auditBody tr');
+            rows.forEach(row => {
+                const text = row.getAttribute('data-search');
+                row.style.display = text.includes(val) ? "" : "none";
+            });
+        }
+
+        function toggleSelectAll(master) {
+            const checks = document.querySelectorAll('.row-check');
+            checks.forEach(c => {
+                // Only select visible rows (those that match the current search)
+                if(c.closest('tr').style.display !== 'none') c.checked = master.checked;
+            });
+        }
+
+        function addManualEntry() {
+            const val = document.getElementById('manualInput').value;
+            if (!val) return alert("Enter Asset ID");
+            const newItem = {
+                id: val, auditor: "Manual Entry", branch: "N/A", city: "N/A",
+                svgId: `bc-${Math.random().toString(36).substr(2, 9)}`
+            };
+            masterDataList.unshift(newItem);
+            renderTable();
+            document.getElementById('manualInput').value = "";
+        }
+
+        async function downloadSelectedPDF() {
+            const selectedChecks = document.querySelectorAll('.row-check:checked');
+            if (selectedChecks.length === 0) return alert("Please select barcodes first!");
+
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const cardW = 45; const cardH = 32;
+            let x = 10, y = 15, count = 0;
+
+            for (let check of selectedChecks) {
+                const svgId = check.value;
+                const item = masterDataList.find(m => m.svgId === svgId);
+                const imgData = await getImgData(svgId);
+
+                // Draw barcode box
+                doc.setDrawColor(220); doc.rect(x, y, cardW, cardH);
+                doc.setFontSize(8); doc.setTextColor(50);
+                doc.text(item.id, x + cardW/2, y + 6, { align: 'center' });
+                doc.addImage(imgData, 'PNG', x + 2, y + 8, cardW - 4, cardH - 12);
+
+                x += cardW + 3; count++;
+                if (count % 4 === 0) { x = 10; y += cardH + 5; }
+                if (count % 24 === 0 && count < selectedChecks.length) { 
+                    doc.addPage(); x = 10; y = 15; 
+                }
+            }
+            doc.save("SAMS-Selected-Barcodes.pdf");
+        }
+
         function getImgData(svgId) {
             return new Promise((resolve) => {
                 const svg = document.getElementById(svgId);
                 const canvas = document.getElementById('hiddenCanvas');
                 const xml = new XMLSerializer().serializeToString(svg);
                 const svg64 = btoa(unescape(encodeURIComponent(xml)));
-                const image64 = 'data:image/svg+xml;base64,' + svg64;
                 const img = new Image();
                 img.onload = function () {
-                    canvas.width = img.width; canvas.height = img.height;
+                    canvas.width = img.width * 2; canvas.height = img.height * 2;
                     const ctx = canvas.getContext('2d');
                     ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
+                    ctx.scale(2,2); ctx.drawImage(img, 0, 0);
                     resolve(canvas.toDataURL("image/png"));
                 };
-                img.src = image64;
+                img.src = 'data:image/svg+xml;base64,' + svg64;
             });
-        }
-
-        // 6. DOWNLOAD INDIVIDUAL
-        async function downloadIndividualPDF(svgId, id) {
-            const imgData = await getImgData(svgId);
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [100, 60] });
-            drawLabel(doc, imgData, id, 0, 0, 100, 60);
-            doc.save(`Tag-${id}.pdf`);
-        }
-
-        // 7. DOWNLOAD ALL IN 4x6 GRID
-        async function downloadAllPDF() {
-            if (currentRows.length === 0) return alert("No data to export");
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-            const cols = 4;
-            const margin = 10;
-            const pageWidth = 210;
-            const cardWidth = (pageWidth - (margin * 2)) / cols;
-            const cardHeight = 45;
-
-            let x = margin, y = margin, c = 0, r = 0;
-
-            for (let i = 0; i < currentRows.length; i++) {
-                const item = currentRows[i];
-                const imgData = await getImgData(item.svgId);
-
-                // Draw Box
-                doc.setDrawColor(200); doc.rect(x, y, cardWidth - 2, cardHeight - 2);
-                doc.setFillColor(15, 23, 42); doc.rect(x, y, cardWidth - 2, 6, 'F');
-                doc.setFontSize(6); doc.setTextColor(255); doc.text("SAMS AUDIT", x + (cardWidth / 2), y + 4, { align: "center" });
-                doc.setTextColor(30); doc.setFontSize(8); doc.text(item.id, x + (cardWidth / 2), y + 10, { align: "center" });
-                doc.addImage(imgData, 'PNG', x + 2, y + 12, cardWidth - 6, cardHeight - 18);
-
-                c++;
-                if (c < cols) { x += cardWidth; }
-                else { c = 0; x = margin; y += cardHeight + 5; r++; }
-                if (r >= 6 && i < currentRows.length - 1) { doc.addPage(); x = margin; y = margin; c = 0; r = 0; }
-            }
-            doc.save(`SAMS-Batch-Grid.pdf`);
         }
 
         function downloadPNG(svgId, fileName) {
             getImgData(svgId).then(imgUri => {
                 const link = document.createElement('a');
-                link.download = `${fileName}.png`; link.href = imgUri; link.click();
+                link.download = `Barcode-${fileName}.png`; link.href = imgUri; link.click();
             });
         }
 
-        function drawLabel(doc, imgData, id, x, y, w, h) {
-            doc.setFillColor(15, 23, 42); doc.rect(x, y, w, 12, 'F');
-            doc.setFontSize(12); doc.setTextColor(255); doc.text("SAMS INVENTORY TAG", w / 2, 8, { align: "center" });
-            doc.setTextColor(30); doc.setFontSize(10); doc.text(`ASSET: ${id}`, w / 2, 20, { align: "center" });
-            doc.addImage(imgData, 'PNG', 10, 24, 80, 32);
-        }
-
-        // Auto-fetch on start
         window.onload = fetchAuditData;
     </script>
     <script src="sidebar.js"></script>
 </body>
-
 </html>
