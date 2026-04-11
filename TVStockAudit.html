@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMS | TV Audit Logs</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --sidebar-bg: #0f172a;
+            --bg: #f1f5f9;
+            --white: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; color: var(--text-main); }
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); height: 100vh; color: white; position: fixed; display: flex; flex-direction: column; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+
+        .table-container { background: var(--white); padding: 30px; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); overflow-x: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 10px; min-width: 1000px; }
+        th { text-align: left; padding: 10px 15px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 15px; background: #fcfcfc; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: middle; }
+        
+        td:first-child { border-left: 1px solid #f1f5f9; border-radius: 12px 0 0 12px; }
+        td:last-child { border-right: 1px solid #f1f5f9; border-radius: 0 12px 12px 0; }
+
+        .method-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #e0e7ff; color: #4338ca; }
+        .btn-refresh { padding: 8px 16px; border-radius: 8px; border: none; background: var(--primary); color: white; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+        #loading { text-align: center; padding: 50px; color: var(--primary); }
+    </style>
+</head>
+
+<body>
+  <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <div class="header-flex">
+            <div>
+                <h1 style="margin:0;">TV Audit Logs</h1>
+                <p style="color: var(--text-muted);">Physical verification records for TV assets</p>
+            </div>
+            <button class="btn-refresh" onclick="fetchTVLogs()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
+        </div>
+
+        <section class="table-container">
+            <div id="loading"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><p>Fetching from tv_audit...</p></div>
+            <table id="audit-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>ID Number</th>
+                        <th>Auditor</th>
+                        <th>Branch / City</th>
+                        <th>Method</th>
+                        <th>Remarks (Model)</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+            authDomain: "sams-e7c4b.firebaseapp.com",
+            projectId: "sams-e7c4b",
+            storageBucket: "sams-e7c4b.firebasestorage.app",
+            messagingSenderId: "829551028089",
+            appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function fetchTVLogs() {
+            const loading = document.getElementById('loading');
+            const table = document.getElementById('audit-table');
+            const tbody = document.getElementById('table-body');
+
+            loading.style.display = "block";
+            table.style.display = "none";
+            tbody.innerHTML = "";
+
+            try {
+                // Fetching from 'tv_audit' and sorting by newest first
+                const snap = await db.collection('tv_audit').orderBy('timestamp', 'desc').get();
+                
+                if (snap.empty) {
+                    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:30px;'>No audit records found.</td></tr>";
+                } else {
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        
+                        // Formatting the Firebase Timestamp
+                        let dateStr = "N/A";
+                        if(d.timestamp) {
+                            const dateObj = d.timestamp.toDate();
+                            dateStr = `<b>${dateObj.toLocaleDateString()}</b><br><small>${dateObj.toLocaleTimeString()}</small>`;
+                        }
+
+                        const row = `
+                            <tr>
+                                <td>${dateStr}</td>
+                                <td style="font-family:monospace; font-weight:700; color:var(--primary);">${d.idNumber || d.scannedData || '-'}</td>
+                                <td style="font-weight:600;">${d.auditBy_Name || 'Unknown'}</td>
+                                <td>
+                                    ${d.auditLocation_Branch || 'N/A'}<br>
+                                    <span style="font-size:12px; color:var(--text-muted)">${d.auditLocation_City || ''}</span>
+                                </td>
+                                <td><span class="method-badge">${d.method || 'Manual'}</span></td>
+                                <td style="color:#475569;">${d.remarks || '-'}</td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                }
+
+                loading.style.display = "none";
+                table.style.display = "table";
+
+            } catch (error) {
+                console.error("Error:", error);
+                loading.innerHTML = `<b style="color:red;">Error: ${error.message}</b>`;
+            }
+        }
+
+        window.onload = fetchTVLogs;
+    </script>
+    <script src="sidebar.js"></script>
+</body>
+</html>

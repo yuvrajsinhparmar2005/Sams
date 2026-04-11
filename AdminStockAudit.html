@@ -261,35 +261,7 @@
 
 <body>
 
-    <aside class="sidebar">
-        <div class="sidebar-header">SAMS</div>
-        <ul class="nav-links">
-            <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-            <li><a href="StockIn-Out.html"><i class="fas fa-exchange-alt"></i> Stock In & Out</a></li>
-            <li><a href="StockAudit.html"><i class="fas fa-clipboard-check"></i> Stock Audit</a></li>
-            <div
-                style="padding: 10px 30px; font-size: 11px; text-transform: uppercase; color: #475569; font-weight: 700; letter-spacing: 1px; margin-top: 20px;">
-                Administration</div>
-            <li class="active"><a href="AdminStockAudit.html"><i class="fas fa-user-shield"></i> Admin Audit</a></li>
-            <li style="margin: 8px 15px; border-radius: 12px;">
-                <a href="TVAdminStockAudit.html"
-                    style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;">
-                    <i class="fas fa-user-shield"
-                        style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center; opacity: 0.8;"></i>
-                    True Value Admin Audit
-                </a>
-            </li>
-            <li style="margin: 8px 15px; border-radius: 12px; ">
-                <a href="Barcode.html"
-                    style="text-decoration: none; color: #94a3b8; padding: 14px 18px; display: flex; align-items: center; font-size: 14px; font-weight: 500;">
-                    <i class="fas fa-barcode"
-                        style="margin-right: 15px; font-size: 18px; width: 25px; text-align: center;"></i>
-                    Barcode Download
-                </a>
-            </li>
-            <li><a href="UserAccess.html"><i class="fas fa-users-cog"></i> User Access</a></li>
-        </ul>
-    </aside>
+    <div id="sidebar-container"></div>
 
     <main class="main-content">
         <header>
@@ -619,6 +591,7 @@
             reader.readAsArrayBuffer(file);
         });
     </script>
+    <script src="sidebar.js"></script>
 </body>
 
 </html>
