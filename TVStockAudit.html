@@ -21,8 +21,7 @@
         }
 
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; color: var(--text-main); }
-        .sidebar { width: 260px; background-color: var(--sidebar-bg); height: 100vh; color: white; position: fixed; display: flex; flex-direction: column; }
-        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; min-height: 100vh; }
         
         .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 
@@ -36,12 +35,22 @@
 
         .method-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #e0e7ff; color: #4338ca; }
         .btn-refresh { padding: 8px 16px; border-radius: 8px; border: none; background: var(--primary); color: white; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+        
+        /* Pagination Button */
+        .load-more-container { text-align: center; margin-top: 30px; padding-bottom: 40px; }
+        .btn-load-more { 
+            padding: 12px 24px; border-radius: 10px; border: 1px solid var(--primary); 
+            background: white; color: var(--primary); cursor: pointer; font-weight: 600; 
+            transition: 0.2s; display: none;
+        }
+        .btn-load-more:hover { background: var(--primary); color: white; }
+
         #loading { text-align: center; padding: 50px; color: var(--primary); }
     </style>
 </head>
 
 <body>
-  <div id="sidebar-container"></div>
+    <div id="sidebar-container"></div>
 
     <main class="main-content">
         <div class="header-flex">
@@ -49,11 +58,11 @@
                 <h1 style="margin:0;">TV Audit Logs</h1>
                 <p style="color: var(--text-muted);">Physical verification records for TV assets</p>
             </div>
-            <button class="btn-refresh" onclick="fetchTVLogs()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
+            <button class="btn-refresh" onclick="resetAndFetch()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
         </div>
 
         <section class="table-container">
-            <div id="loading"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><p>Fetching from tv_audit...</p></div>
+            <div id="loading"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><p>Syncing TV Audits...</p></div>
             <table id="audit-table" style="display:none;">
                 <thead>
                     <tr>
@@ -67,6 +76,10 @@
                 </thead>
                 <tbody id="table-body"></tbody>
             </table>
+
+            <div class="load-more-container">
+                <button id="load-more-btn" class="btn-load-more" onclick="fetchTVLogs()">Load More Logs</button>
+            </div>
         </section>
     </main>
 
@@ -83,33 +96,52 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // Pagination Config
+        let lastVisibleDoc = null;
+        const limitPerPage = 10;
+
+        function resetAndFetch() {
+            lastVisibleDoc = null;
+            document.getElementById('table-body').innerHTML = "";
+            fetchTVLogs();
+        }
+
         async function fetchTVLogs() {
             const loading = document.getElementById('loading');
             const table = document.getElementById('audit-table');
             const tbody = document.getElementById('table-body');
+            const loadBtn = document.getElementById('load-more-btn');
 
-            loading.style.display = "block";
-            table.style.display = "none";
-            tbody.innerHTML = "";
+            if (!lastVisibleDoc) {
+                loading.style.display = "block";
+                table.style.display = "none";
+            }
+            loadBtn.style.display = "none";
 
             try {
-                // Fetching from 'tv_audit' and sorting by newest first
-                const snap = await db.collection('tv_audit').orderBy('timestamp', 'desc').get();
+                let query = db.collection('tv_audit')
+                              .orderBy('timestamp', 'desc')
+                              .limit(limitPerPage);
+
+                if (lastVisibleDoc) {
+                    query = query.startAfter(lastVisibleDoc);
+                }
+
+                const snap = await query.get();
                 
-                if (snap.empty) {
+                if (snap.empty && !lastVisibleDoc) {
                     tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:30px;'>No audit records found.</td></tr>";
                 } else {
                     snap.forEach(doc => {
                         const d = doc.data();
                         
-                        // Formatting the Firebase Timestamp
                         let dateStr = "N/A";
                         if(d.timestamp) {
                             const dateObj = d.timestamp.toDate();
-                            dateStr = `<b>${dateObj.toLocaleDateString()}</b><br><small>${dateObj.toLocaleTimeString()}</small>`;
+                            dateStr = `<b>${dateObj.toLocaleDateString()}</b><br><small>${dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small>`;
                         }
 
-                        const row = `
+                        const rowHTML = `
                             <tr>
                                 <td>${dateStr}</td>
                                 <td style="font-family:monospace; font-weight:700; color:var(--primary);">${d.idNumber || d.scannedData || '-'}</td>
@@ -122,15 +154,22 @@
                                 <td style="color:#475569;">${d.remarks || '-'}</td>
                             </tr>
                         `;
-                        tbody.innerHTML += row;
+                        tbody.insertAdjacentHTML('beforeend', rowHTML);
                     });
+
+                    lastVisibleDoc = snap.docs[snap.docs.length - 1];
+
+                    // Show button only if there are likely more records
+                    if (snap.docs.length === limitPerPage) {
+                        loadBtn.style.display = "inline-block";
+                    }
                 }
 
                 loading.style.display = "none";
                 table.style.display = "table";
 
             } catch (error) {
-                console.error("Error:", error);
+                console.error("Pagination Error:", error);
                 loading.innerHTML = `<b style="color:red;">Error: ${error.message}</b>`;
             }
         }
