@@ -13,224 +13,71 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root { --primary: #6366f1; --secondary: #0f172a; --bg: #f1f5f9; --white: #ffffff; --success-bg: #ecfdf5; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; width: calc(100% - 260px); box-sizing: border-box; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        .filter-bar { background: white; padding: 20px; border-radius: 12px; display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 12px; font-weight: 600; color: #64748b; }
+        .filter-group select { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 180px; outline: none; }
 
-        :root {
-            --primary: #6366f1;
-            --secondary: #0f172a;
-            --bg: #f1f5f9;
-            --white: #ffffff;
-            --excel-red: #e11d48;
-            --success-bg: #f5f3ff;
-        }
+        .btn-upload { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-download { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-clear { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            background-color: var(--bg);
-            display: flex;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 260px;
-            background-color: var(--secondary);
-            height: 100vh;
-            color: white;
-            position: fixed;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            padding: 40px 20px;
-            text-align: center;
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: 3px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .nav-links {
-            list-style: none;
-            padding: 25px 0;
-            margin: 0;
-            flex-grow: 1;
-        }
-
-        .nav-links li {
-            margin: 8px 15px;
-            border-radius: 12px;
-        }
-
-        .nav-links a {
-            text-decoration: none;
-            color: #94a3b8;
-            padding: 14px 18px;
-            display: flex;
-            align-items: center;
-            font-size: 14px;
-            font-weight: 500;
-            transition: 0.3s;
-        }
-
-        .nav-links li.active {
-            background-color: var(--primary);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-
-        .nav-links li.active a {
-            color: white;
-        }
-
-        .nav-links i {
-            margin-right: 15px;
-            font-size: 18px;
-            width: 25px;
-            text-align: center;
-        }
-
-        /* Main Content */
-        .main-content {
-            margin-left: 260px;
-            flex-grow: 1;
-            padding: 40px;
-            width: calc(100% - 260px);
-            box-sizing: border-box;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .btn-upload {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 13px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-clear {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-left: 10px;
-            font-size: 13px;
-        }
-
-        /* Table Styles */
-        .table-wrapper {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            overflow: auto;
-            max-height: 75vh;
-            border: 1px solid #e2e8f0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            min-width: 1200px;
-        }
-
-        thead th {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            padding: 14px 12px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: white;
-        }
-
-        .th-audit {
-            background-color: #1e1b4b;
-        }
-
-        .th-scan {
-            background-color: #6366f1;
-        }
-
-        .th-excel {
-            background-color: #4338ca;
-        }
-
-        tbody td {
-            padding: 12px;
-            font-size: 12px;
-            border-bottom: 1px solid #e2e8f0;
-            border-right: 1px solid #f1f5f9;
-            white-space: nowrap;
-            color: #334155;
-        }
-
-        .row-matched {
-            background-color: var(--success-bg) !important;
-        }
-
-        .mapped-badge {
-            background: #6d28d9;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 10px;
-        }
-
-        .upload-card {
-            background: white;
-            padding: 60px;
-            border-radius: 16px;
-            border: 2px dashed #cbd5e1;
-            text-align: center;
-            margin-bottom: 30px;
-        }
+        .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: auto; max-height: 65vh; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1500px; }
+        thead th { position: sticky; top: 0; z-index: 20; padding: 14px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: white; }
+        .th-audit { background-color: #1e1b4b; }
+        .th-scan { background-color: #6366f1; }
+        .th-excel { background-color: #4338ca; }
+        tbody td { padding: 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; color: #334155; }
+        .row-matched { background-color: #f0fdf4 !important; }
+        .row-extra { background-color: #fff7ed !important; }
+        .mapped-badge { background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        .extra-badge { background: #f97316; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        .upload-card { background: white; padding: 40px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 20px; }
     </style>
 </head>
 
 <body>
-
-   <div id="sidebar-container"></div>
-
+    <div id="sidebar-container"></div>
     <main class="main-content">
         <header>
             <div>
-                <h1 style="margin:0; font-size: 24px; color: #0f172a;">True Value Admin Audit Mapping</h1>
-                <p style="margin:5px 0 0; color: #64748b;">Sync Status: <span id="syncStatus"
-                        style="font-weight: 700; color: var(--excel-red);">Waiting...</span></p>
+                <h1 style="margin:0; font-size: 24px; color: #0f172a;">True Value Audit Explorer</h1>
+                <p style="margin:5px 0 0; color: #64748b;">Sync Status: <span id="syncStatus">Waiting...</span></p>
             </div>
-            <div>
-                <button class="btn-upload" style="background: #8b5cf6;" onclick="loadTVScans()">
-                    <i class="fas fa-sync-alt"></i> Refresh DB
-                </button>
-                <button class="btn-clear" onclick="clearExcel()">Clear Excel</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-download" onclick="downloadData()"><i class="fas fa-file-download"></i> Download Excel</button>
+                <button class="btn-upload" style="background: #8b5cf6;" onclick="loadTVScans()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button class="btn-clear" onclick="clearExcel()">Clear</button>
             </div>
         </header>
 
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Select City</label>
+                <select id="cityFilter" onchange="applyFilters()">
+                    <option value="All">All Cities</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Select Type</label>
+                <select id="typeFilter" onchange="applyFilters()">
+                    <option value="All">All Data</option>
+                    <option value="Mapped">Mapped Data</option>
+                    <option value="Unmapped">Unmapped Data</option>
+                    <option value="Extra">Extra (Firebase Only)</option>
+                </select>
+            </div>
+        </div>
+
         <div class="upload-card" id="uploadCard">
-            <i class="fas fa-file-excel" style="font-size: 48px; color: #4f46e5; margin-bottom: 15px;"></i>
-            <h3>Upload Master Sheet</h3>
-            <p style="color: #64748b;">Click below to select your Excel file.</p>
             <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
-            <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Select Excel File</button>
+            <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Upload Master Excel</button>
         </div>
 
         <div class="table-wrapper">
@@ -238,27 +85,24 @@
                 <thead>
                     <tr>
                         <th class="th-audit">Status</th>
-                        <th class="th-scan">Method</th>
-                        <th class="th-scan">Audit Date</th>
-                        <th class="th-scan">Auditor</th>
+                        <th class="th-excel">Excel City</th>
                         <th class="th-excel">Registration No</th>
                         <th class="th-excel">Model</th>
                         <th class="th-excel">Color</th>
                         <th class="th-excel">Year</th>
                         <th class="th-excel">Valuation Price</th>
+                        <th class="th-scan">Method</th>
+                        <th class="th-scan">Auditor</th>
+                        <th class="th-scan">FB Location</th>
+                        <th class="th-scan">Audit Date</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="9" style="text-align: center; padding: 60px; color: #94a3b8;">No data loaded.</td>
-                    </tr>
-                </tbody>
+                <tbody id="tableBody"></tbody>
             </table>
         </div>
     </main>
 
     <script>
-        // --- 1. FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
             authDomain: "sams-e7c4b.firebaseapp.com",
@@ -267,104 +111,143 @@
             messagingSenderId: "829551028089",
             appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        let tvScans = [];
+        
+        let tvScans = []; 
+        let excelData = []; 
+        let filteredDisplayData = [];
 
-        // --- 2. LOAD DB DATA ---
         async function loadTVScans() {
             document.getElementById('syncStatus').innerText = "Syncing...";
             try {
-                const snapshot = await db.collection('audit_scans').get();
+                const snapshot = await db.collection('tv_audit').get();
                 tvScans = snapshot.docs.map(doc => {
                     const d = doc.data();
                     return {
-                        plate: String(d.plateNumber || '').trim().toUpperCase().replace(/\s/g, ''),
+                        plate: String(d.idNumber || '').trim().toUpperCase().replace(/\s/g, ''),
+                        auditor: d.auditBy_Name || "N/A",
+                        location: d.auditLocation_Branch || "N/A",
+                        city: d.auditLocation_City || "N/A",
                         method: d.method || "Manual",
-                        auditor: d.scannedBy || "User",
                         time: d.timestamp ? d.timestamp.toDate().toLocaleString() : 'N/A'
                     };
                 });
                 document.getElementById('syncStatus').innerText = "DB Synced!";
                 document.getElementById('syncStatus').style.color = "#10b981";
-
-                // Re-render if excel is already in memory
-                const stored = localStorage.getItem('tvAuditData');
-                if (stored) renderTable(JSON.parse(stored));
-            } catch (err) {
-                document.getElementById('syncStatus').innerText = "Sync Error";
-            }
+                updateCityList();
+            } catch (err) { document.getElementById('syncStatus').innerText = "Sync Error"; }
         }
 
-        // --- 3. THE "ULTIMATE" TABLE RENDERER ---
-        function renderTable(data) {
-            const tbody = document.getElementById('tableBody');
-            if (!data || data.length === 0) return;
+        function updateCityList() {
+            const cities = new Set();
+            tvScans.forEach(s => cities.add(s.city));
+            excelData.forEach(row => {
+                const city = row["City"] || row["city"];
+                if(city) cities.add(city);
+            });
+            const citySelect = document.getElementById('cityFilter');
+            citySelect.innerHTML = '<option value="All">All Cities</option>';
+            [...cities].sort().forEach(city => {
+                citySelect.innerHTML += `<option value="${city}">${city}</option>`;
+            });
+            applyFilters();
+        }
 
-            tbody.innerHTML = '';
-            document.getElementById('uploadCard').style.display = "none";
+        function applyFilters() {
+            const selectedCity = document.getElementById('cityFilter').value;
+            const selectedType = document.getElementById('typeFilter').value;
+            let finalData = [];
+            const matchedPlates = new Set();
 
-            data.forEach(row => {
-                const keys = Object.keys(row);
+            excelData.forEach(row => {
+                const excelCity = row["City"] || row["city"] || "Unknown";
+                const plate = String(row["REGISTRATION NO"] || row["Registration No"] || "").trim().toUpperCase().replace(/\s/g, '');
+                const match = tvScans.find(s => s.plate === plate && plate !== "");
+                
+                if (match) matchedPlates.add(plate);
 
-                // Helper to find column regardless of typos/spaces
-                const getVal = (possibleNames) => {
-                    const foundKey = keys.find(k => {
-                        const cleanK = k.toLowerCase().replace(/[^a-z]/g, '');
-                        return possibleNames.some(name => cleanK.includes(name));
-                    });
-                    return foundKey ? row[foundKey] : '';
+                const item = {
+                    type: match ? 'Mapped' : 'Unmapped',
+                    match: match,
+                    city: excelCity,
+                    regNo: plate,
+                    model: row["Model"] || row["model"] || "---",
+                    color: row["Color"] || row["color"] || "---",
+                    year: row["Year"] || row["year"] || "---",
+                    price: row["VALUATION PRICE"] || row["Valuation Price"] || "---"
                 };
 
-                const regNoRaw = getVal(['registrationno', 'regno', 'plateno', 'vehicleno']);
-                const regNoFormatted = String(regNoRaw).trim().toUpperCase();
-                const regNoForMatch = regNoFormatted.replace(/\s/g, ''); // Remove spaces for matching
+                if ((selectedCity === "All" || item.city === selectedCity) && 
+                    (selectedType === "All" || selectedType === item.type) && selectedType !== "Extra") {
+                    finalData.push(item);
+                }
+            });
 
-                const match = tvScans.find(s => s.plate === regNoForMatch && regNoForMatch !== "");
+            if (selectedType === "All" || selectedType === "Extra") {
+                tvScans.forEach(scan => {
+                    if (!matchedPlates.has(scan.plate)) {
+                        const item = { type: 'Extra', match: scan, city: scan.city, regNo: scan.plate, model: '---', color: '---', year: '---', price: '---' };
+                        if (selectedCity === "All" || item.city === selectedCity) finalData.push(item);
+                    }
+                });
+            }
+            finalData.sort((a, b) => { const o = {'Mapped':1,'Extra':2,'Unmapped':3}; return o[a.type] - o[b.type]; });
+            filteredDisplayData = finalData;
+            renderUI(finalData);
+        }
 
+        function renderUI(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            document.getElementById('uploadCard').style.display = excelData.length ? "none" : "block";
+            data.forEach(item => {
                 const tr = document.createElement('tr');
-                if (match) tr.classList.add('row-matched');
-
+                if (item.type === 'Mapped') tr.classList.add('row-matched');
+                if (item.type === 'Extra') tr.classList.add('row-extra');
+                const badge = item.type === 'Mapped' ? '<span class="mapped-badge">MAPPED</span>' : 
+                              item.type === 'Extra' ? '<span class="extra-badge">EXTRA</span>' : '---';
                 tr.innerHTML = `
-                <td style="text-align:center">${match ? '<span class="mapped-badge">MATCHED</span>' : '---'}</td>
-                <td>${match ? match.method : '---'}</td>
-                <td>${match ? match.time : '---'}</td>
-                <td>${match ? match.auditor : '---'}</td>
-                <td style="font-weight:700;">${regNoFormatted || '---'}</td>
-                <td>${getVal(['model', 'variant'])}</td>
-                <td>${getVal(['color', 'colour'])}</td>
-                <td>${getVal(['year', 'mfg'])}</td>
-                <td>${getVal(['valuation', 'price', 'amt'])}</td>
-            `;
+                    <td style="text-align:center">${badge}</td>
+                    <td style="font-weight:600">${item.city}</td>
+                    <td style="font-weight:700;">${item.regNo}</td>
+                    <td>${item.model}</td>
+                    <td>${item.color}</td>
+                    <td>${item.year}</td>
+                    <td>${item.price}</td>
+                    <td>${item.match ? item.match.method : '---'}</td>
+                    <td>${item.match ? item.match.auditor : '---'}</td>
+                    <td>${item.match ? item.match.location : '---'}</td>
+                    <td>${item.match ? item.match.time : '---'}</td>
+                `;
                 tbody.appendChild(tr);
             });
         }
 
-        // --- 4. EXCEL UPLOAD HANDLER ---
+        function downloadData() {
+            const exportData = filteredDisplayData.map(item => ({
+                Status: item.type, City: item.city, Registration_No: item.regNo, Model: item.model,
+                Color: item.color, Year: item.year, Price: item.price, Auditor: item.match?.auditor || ''
+            }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "AuditData");
+            XLSX.writeFile(wb, `Report_${new Date().toLocaleDateString()}.xlsx`);
+        }
+
         document.getElementById('fileInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
             const reader = new FileReader();
             reader.onload = (event) => {
                 const wb = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
-                const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                localStorage.setItem('tvAuditData', JSON.stringify(jsonData));
-                renderTable(jsonData);
+                excelData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                localStorage.setItem('tvAuditData', JSON.stringify(excelData));
+                updateCityList();
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(e.target.files[0]);
         });
 
-        function clearExcel() {
-            if (confirm("Clear data?")) {
-                localStorage.removeItem('tvAuditData');
-                location.reload();
-            }
-        }
-
+        function clearExcel() { if(confirm("Clear Data?")) { localStorage.removeItem('tvAuditData'); excelData = []; updateCityList(); } }
         window.onload = loadTVScans;
     </script>
-
-<script src="sidebar.js"></script>
 </body>
-
 </html>
