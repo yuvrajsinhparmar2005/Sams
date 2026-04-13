@@ -125,7 +125,7 @@
                 tvScans = snapshot.docs.map(doc => {
                     const d = doc.data();
                     return {
-                        plate: String(d.idNumber || '').trim().toUpperCase().replace(/\s/g, ''),
+                        plate: String(d.idNumber || d.scannedData || '').trim().toUpperCase().replace(/\s/g, ''),
                         auditor: d.auditBy_Name || "N/A",
                         location: d.auditLocation_Branch || "N/A",
                         city: d.auditLocation_City || "N/A",
