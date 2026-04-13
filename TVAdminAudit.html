@@ -52,8 +52,8 @@
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="btn-download" onclick="downloadData()"><i class="fas fa-file-download"></i> Download Excel</button>
-                <button class="btn-upload" style="background: #8b5cf6;" onclick="loadTVScans()"><i class="fas fa-sync-alt"></i> Refresh</button>
-                <button class="btn-clear" onclick="clearExcel()">Clear</button>
+                <button class="btn-upload" style="background: #8b5cf6;" onclick="loadTVScans()"><i class="fas fa-sync-alt"></i> Refresh DB</button>
+                <button class="btn-clear" onclick="clearExcel()">Clear Local Storage</button>
             </div>
         </header>
 
@@ -77,6 +77,8 @@
 
         <div class="upload-card" id="uploadCard">
             <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
+            <i class="fas fa-cloud-upload-alt" style="font-size: 30px; color: #6366f1; margin-bottom: 10px;"></i>
+            <p style="margin: 0 0 15px; color: #64748b;">No Excel sheet found in browser memory.</p>
             <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Upload Master Excel</button>
         </div>
 
@@ -118,6 +120,20 @@
         let excelData = []; 
         let filteredDisplayData = [];
 
+        // ON LOAD: Initialize Excel Data from Storage immediately
+        function initStorage() {
+            const stored = localStorage.getItem('tvAuditData');
+            if (stored) {
+                try {
+                    excelData = JSON.parse(stored);
+                    console.log("Excel data restored from storage.");
+                } catch (e) {
+                    console.error("Storage parse error", e);
+                    excelData = [];
+                }
+            }
+        }
+
         async function loadTVScans() {
             document.getElementById('syncStatus').innerText = "Syncing...";
             try {
@@ -135,17 +151,25 @@
                 });
                 document.getElementById('syncStatus').innerText = "DB Synced!";
                 document.getElementById('syncStatus').style.color = "#10b981";
+                
+                // Once DB is loaded, refresh city list and filters
                 updateCityList();
-            } catch (err) { document.getElementById('syncStatus').innerText = "Sync Error"; }
+            } catch (err) { 
+                document.getElementById('syncStatus').innerText = "Sync Error"; 
+                console.error(err);
+            }
         }
 
         function updateCityList() {
             const cities = new Set();
+            // Pull cities from Firebase
             tvScans.forEach(s => cities.add(s.city));
+            // Pull cities from Excel
             excelData.forEach(row => {
                 const city = row["City"] || row["city"];
                 if(city) cities.add(city);
             });
+
             const citySelect = document.getElementById('cityFilter');
             citySelect.innerHTML = '<option value="All">All Cities</option>';
             [...cities].sort().forEach(city => {
@@ -160,6 +184,7 @@
             let finalData = [];
             const matchedPlates = new Set();
 
+            // Process Excel Data
             excelData.forEach(row => {
                 const excelCity = row["City"] || row["city"] || "Unknown";
                 const plate = String(row["REGISTRATION NO"] || row["Registration No"] || "").trim().toUpperCase().replace(/\s/g, '');
@@ -184,6 +209,7 @@
                 }
             });
 
+            // Process Extras
             if (selectedType === "All" || selectedType === "Extra") {
                 tvScans.forEach(scan => {
                     if (!matchedPlates.has(scan.plate)) {
@@ -192,7 +218,12 @@
                     }
                 });
             }
-            finalData.sort((a, b) => { const o = {'Mapped':1,'Extra':2,'Unmapped':3}; return o[a.type] - o[b.type]; });
+
+            finalData.sort((a, b) => { 
+                const o = {'Mapped':1,'Extra':2,'Unmapped':3}; 
+                return o[a.type] - o[b.type]; 
+            });
+
             filteredDisplayData = finalData;
             renderUI(finalData);
         }
@@ -200,13 +231,24 @@
         function renderUI(data) {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
+            
+            // Hide upload prompt if data exists
             document.getElementById('uploadCard').style.display = excelData.length ? "none" : "block";
+
+            if (data.length === 0 && excelData.length > 0) {
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:40px;">No matching data found for selected filters.</td></tr>';
+                return;
+            }
+
             data.forEach(item => {
                 const tr = document.createElement('tr');
                 if (item.type === 'Mapped') tr.classList.add('row-matched');
                 if (item.type === 'Extra') tr.classList.add('row-extra');
+                
                 const badge = item.type === 'Mapped' ? '<span class="mapped-badge">MAPPED</span>' : 
-                              item.type === 'Extra' ? '<span class="extra-badge">EXTRA</span>' : '---';
+                              item.type === 'Extra' ? '<span class="extra-badge">EXTRA</span>' : 
+                              '<span style="color:#94a3b8">PENDING</span>';
+
                 tr.innerHTML = `
                     <td style="text-align:center">${badge}</td>
                     <td style="font-weight:600">${item.city}</td>
@@ -225,14 +267,16 @@
         }
 
         function downloadData() {
+            if(!filteredDisplayData.length) return alert("No data to export!");
             const exportData = filteredDisplayData.map(item => ({
                 Status: item.type, City: item.city, Registration_No: item.regNo, Model: item.model,
-                Color: item.color, Year: item.year, Price: item.price, Auditor: item.match?.auditor || ''
+                Color: item.color, Year: item.year, Price: item.price, Auditor: item.match?.auditor || '',
+                FB_Location: item.match?.location || '', Audit_Date: item.match?.time || ''
             }));
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "AuditData");
-            XLSX.writeFile(wb, `Report_${new Date().toLocaleDateString()}.xlsx`);
+            XLSX.writeFile(wb, `Audit_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
         document.getElementById('fileInput').addEventListener('change', (e) => {
@@ -240,14 +284,30 @@
             reader.onload = (event) => {
                 const wb = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
                 excelData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                
+                // SAVE TO STORAGE
                 localStorage.setItem('tvAuditData', JSON.stringify(excelData));
+                
                 updateCityList();
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         });
 
-        function clearExcel() { if(confirm("Clear Data?")) { localStorage.removeItem('tvAuditData'); excelData = []; updateCityList(); } }
-        window.onload = loadTVScans;
+        function clearExcel() { 
+            if(confirm("This will permanently remove the Excel data from your browser memory. Continue?")) { 
+                localStorage.removeItem('tvAuditData'); 
+                excelData = []; 
+                updateCityList(); 
+                alert("Storage cleared.");
+            } 
+        }
+
+        // Initialize script
+        window.onload = () => {
+            initStorage();
+            loadTVScans();
+        };
     </script>
+    <script src="sidebar.js"></script>
 </body>
 </html>
