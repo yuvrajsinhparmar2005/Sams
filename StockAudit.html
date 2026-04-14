@@ -19,6 +19,8 @@
             --white: #ffffff;
             --text-main: #1e293b;
             --text-muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
         }
 
         body {
@@ -29,152 +31,191 @@
             color: var(--text-main);
         }
 
-        .sidebar {
-            width: 260px;
-            background-color: var(--sidebar-bg);
-            height: 100vh;
-            color: white;
-            position: fixed;
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-        }
-
+        /* Standard Sidebar Layout Space */
         .main-content {
-            margin-left: 260px;
+            margin-left: 260px; /* Adjust based on your sidebar.js width */
             flex-grow: 1;
             padding: 40px;
+            min-height: 100vh;
         }
 
-        /* Table Design */
+        .header-flex {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
+
         .table-container {
             background: var(--white);
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             overflow-x: auto;
         }
 
         table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 10px;
-            min-width: 900px;
+            border-collapse: collapse;
+            min-width: 1000px;
         }
 
         th {
             text-align: left;
-            padding: 10px 15px;
+            padding: 15px;
+            border-bottom: 2px solid #f1f5f9;
             color: var(--text-muted);
             font-size: 12px;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         td {
             padding: 15px;
-            background: #fcfcfc;
-            border-top: 1px solid #f1f5f9;
             border-bottom: 1px solid #f1f5f9;
             font-size: 14px;
             vertical-align: middle;
         }
 
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
         .method-badge {
-            padding: 4px 10px;
+            padding: 4px 8px;
             border-radius: 6px;
             font-size: 11px;
-            font-weight: 700;
-            background: #e2e8f0;
+            font-weight: 600;
+            background: #f1f5f9;
             color: #475569;
         }
 
         .audit-img {
-            width: 45px;
-            height: 45px;
+            width: 48px;
+            height: 48px;
             border-radius: 8px;
             object-fit: cover;
             cursor: pointer;
-            transition: 0.2s;
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s;
         }
 
-        .audit-img:hover {
-            transform: scale(1.1);
-        }
+        .audit-img:hover { transform: scale(1.1); }
 
-        .btn-refresh,
-        .btn-load-more {
-            padding: 10px 20px;
+        .btn {
+            padding: 10px 18px;
             border-radius: 8px;
             border: none;
-            background: var(--primary);
             color: white;
             cursor: pointer;
             font-weight: 600;
+            font-size: 14px;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            transition: 0.2s;
+            transition: opacity 0.2s;
         }
 
-        .btn-load-more {
-            background: #64748b;
-            margin: 20px auto;
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .btn-load { background: var(--text-muted); margin: 20px auto; display: none; }
+
+        #error-message {
             display: none;
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: var(--danger);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
-        .btn-load-more:hover {
-            background: #475569;
-        }
-
-        .pagination-wrapper {
-            text-align: center;
-            width: 100%;
-        }
-
-        #loading {
-            text-align: center;
-            padding: 50px;
-            color: var(--primary);
-        }
+        #loading { text-align: center; padding: 40px; color: var(--primary); }
     </style>
 </head>
 
 <body>
-   <div id="sidebar-container"></div>
+    <div id="sidebar-container"></div>
 
     <main class="main-content">
-        <div class="header-flex"
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <div class="header-flex">
             <div>
-                <h1 style="margin:0;">Stock Audit Logs</h1>
-                <p style="color: var(--text-muted);">View verification records in batches</p>
+                <h1 style="margin:0; font-size: 28px;">Stock Audit Logs</h1>
+                <p style="color: var(--text-muted); margin-top: 5px;">Manage and export your verification records</p>
             </div>
-            <button class="btn-refresh" onclick="resetPagination()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            
+            <div class="controls">
+                <select id="city-filter" onchange="resetPagination()">
+                    <option value="">All Cities</option>
+                    <option value="Ahmedabad">Ahmedabad</option>
+                    <option value="Himmatnagar">Himmatnagar</option>
+                    <option value="Vadaj">Vadaj</option>
+                    <option value="Mehsana">Mehsana</option>
+                </select>
+
+                <button class="btn btn-success" onclick="downloadCSV()" id="download-btn">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+
+                <button class="btn btn-primary" onclick="resetPagination()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
         </div>
 
+        <div id="error-message"></div>
+
         <section class="table-container">
-            <div id="loading"><i class="fas fa-circle-notch fa-spin fa-2x"></i></div>
+            <div id="loading">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p>Loading records...</p>
+            </div>
+
             <table id="audit-table" style="display:none;">
                 <thead>
                     <tr>
-                        <th>Date & Time</th>
-                        <th>Asset ID</th>
+                        <th>Timestamp</th>
+                        <th>Asset / Barcode</th>
                         <th>Auditor</th>
                         <th>Location</th>
                         <th>Method</th>
-                        <th>Audit Proof</th>
+                        <th>Proof</th>
                         <th>Remarks</th>
                     </tr>
                 </thead>
                 <tbody id="table-body"></tbody>
             </table>
-            <div class="pagination-wrapper">
-                <button id="load-more" class="btn-load-more" onclick="fetchAuditData()">Load More Records</button>
+
+            <div style="text-align: center;">
+                <button id="load-more" class="btn btn-load" onclick="fetchAuditData()">Load More Records</button>
             </div>
         </section>
     </main>
 
     <script>
+        // --- Firebase Configuration ---
         const firebaseConfig = {
             apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
             authDomain: "sams-e7c4b.firebaseapp.com",
@@ -187,12 +228,13 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        let lastVisible = null; // To keep track of the last document fetched
-        const pageSize = 10;    // Number of records per page
+        let lastVisible = null; 
+        const pageSize = 10;    
 
         function resetPagination() {
             lastVisible = null;
             document.getElementById('table-body').innerHTML = "";
+            document.getElementById('error-message').style.display = 'none';
             fetchAuditData();
         }
 
@@ -201,8 +243,8 @@
             const table = document.getElementById('audit-table');
             const tbody = document.getElementById('table-body');
             const loadMoreBtn = document.getElementById('load-more');
+            const selectedCity = document.getElementById('city-filter').value;
 
-            // Show loading only on the first fetch
             if (!lastVisible) {
                 loading.style.display = "block";
                 table.style.display = "none";
@@ -210,47 +252,59 @@
             loadMoreBtn.style.display = "none";
 
             try {
-                let query = db.collection('stock_audit').orderBy('timestamp', 'desc').limit(pageSize);
+                let query = db.collection('stock_audit').orderBy('timestamp', 'desc');
 
-                // If this isn't the first page, start after the last document fetched
-                if (lastVisible) {
-                    query = query.startAfter(lastVisible);
+                // Apply City Filter
+                if (selectedCity !== "") {
+                    query = query.where('auditLocation_City', '==', selectedCity);
                 }
 
-                const snap = await query.get();
+                // Apply Pagination
+                let paginatedQuery = query.limit(pageSize);
+                if (lastVisible) {
+                    paginatedQuery = paginatedQuery.startAfter(lastVisible);
+                }
+
+                const snap = await paginatedQuery.get();
 
                 if (snap.empty && !lastVisible) {
-                    tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:30px;'>No records found.</td></tr>";
+                    tbody.innerHTML = "<tr><td colspan='7' style='text-align:center; padding:40px; color:gray;'>No records found for this city.</td></tr>";
                 } else {
                     snap.forEach(doc => {
                         const d = doc.data();
                         const dateObj = d.timestamp ? d.timestamp.toDate() : new Date();
+                        const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                         const row = `
                             <tr>
                                 <td>
-                                    <b>${dateObj.toLocaleDateString()}</b><br>
-                                    <span style="font-size:12px; color:var(--text-muted)">${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <strong>${formattedDate}</strong><br>
+                                    <small style="color:var(--text-muted)">${formattedTime}</small>
                                 </td>
-                                <td style="font-family:monospace; font-weight:700; color:var(--primary);">${d.barcodeData}</td>
-                                <td style="font-weight:600;">${d.auditBy_Name}</td>
-                                <td>${d.auditLocation_City}<br><span style="font-size:12px; color:gray;">${d.auditLocation_Branch}</span></td>
-                                <td><span class="method-badge">${d.entryMethod || 'Scanner'}</span></td>
+                                <td style="font-family: 'Courier New', monospace; font-weight: bold; color: var(--primary);">
+                                    ${d.barcodeData || 'N/A'}
+                                </td>
+                                <td>
+                                    <div style="font-weight:600;">${d.auditBy_Name || 'Unknown'}</div>
+                                </td>
+                                <td>
+                                    ${d.auditLocation_City}<br>
+                                    <small style="color:var(--text-muted)">${d.auditLocation_Branch || ''}</small>
+                                </td>
+                                <td><span class="method-badge">${(d.entryMethod || 'Scanner').toUpperCase()}</span></td>
                                 <td>
                                     <img src="${d.auditPhotoPath}" class="audit-img" 
                                          onerror="this.src='https://cdn-icons-png.flaticon.com/512/3342/3342137.png'" 
                                          onclick="window.open(this.src)">
                                 </td>
-                                <td style="max-width:180px; font-size:12px; color:#4b5563;">${d.remarks || '-'}</td>
+                                <td style="max-width:200px; color:#64748b; font-size:13px;">${d.remarks || '-'}</td>
                             </tr>
                         `;
                         tbody.insertAdjacentHTML('beforeend', row);
                     });
 
-                    // Update lastVisible for the next fetch
                     lastVisible = snap.docs[snap.docs.length - 1];
-
-                    // Show "Load More" only if we got a full page of results
                     if (snap.docs.length === pageSize) {
                         loadMoreBtn.style.display = "inline-flex";
                     }
@@ -261,10 +315,92 @@
 
             } catch (error) {
                 console.error("Firebase Error:", error);
-                loading.innerHTML = `<span style="color:red;">Error: ${error.message}</span>`;
+                loading.style.display = "none";
+                const errorBox = document.getElementById('error-message');
+                errorBox.style.display = 'block';
+                
+                // Check if it's an index error
+                if (error.message.includes('index')) {
+                    errorBox.innerHTML = `
+                        <strong><i class="fas fa-exclamation-triangle"></i> Database Index Required</strong><br>
+                        Firestore needs a composite index to filter by City and sort by Date.<br><br>
+                        <a href="${extractIndexLink(error.message)}" target="_blank" style="color:var(--primary); font-weight:bold;">
+                           Click here to generate the index automatically in Firebase Console
+                        </a>
+                    `;
+                } else {
+                    errorBox.innerText = "Error loading data: " + error.message;
+                }
             }
         }
 
+        function extractIndexLink(msg) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const matches = msg.match(urlRegex);
+            return matches ? matches[0] : "https://console.firebase.google.com/";
+        }
+
+        async function downloadCSV() {
+            const selectedCity = document.getElementById('city-filter').value;
+            const btn = document.getElementById('download-btn');
+            const originalText = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                let query = db.collection('stock_audit').orderBy('timestamp', 'desc');
+                if (selectedCity !== "") {
+                    query = query.where('auditLocation_City', '==', selectedCity);
+                }
+
+                const snap = await query.get();
+                if (snap.empty) {
+                    alert("No data available to export.");
+                    return;
+                }
+
+                let csvContent = "Date,Time,Asset_ID,Auditor,City,Branch,Method,Remarks,Photo_URL\n";
+                
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const dateObj = d.timestamp ? d.timestamp.toDate() : new Date();
+                    const date = dateObj.toLocaleDateString('en-GB');
+                    const time = dateObj.toLocaleTimeString();
+                    
+                    // Sanitize CSV values to handle commas or quotes
+                    const clean = (val) => `"${(val || '').toString().replace(/"/g, '""')}"`;
+                    
+                    csvContent += [
+                        date, 
+                        time, 
+                        clean(d.barcodeData), 
+                        clean(d.auditBy_Name), 
+                        clean(d.auditLocation_City), 
+                        clean(d.auditLocation_Branch), 
+                        clean(d.entryMethod), 
+                        clean(d.remarks), 
+                        clean(d.auditPhotoPath)
+                    ].join(",") + "\n";
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `SAMS_Audit_${selectedCity || 'All'}_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (error) {
+                alert("Export Error: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Initialize on load
         window.onload = fetchAuditData;
     </script>
     <script src="sidebar.js"></script>
