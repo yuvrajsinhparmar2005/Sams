@@ -54,8 +54,12 @@
         .btn-cancel { background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
         .btn-save { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
 
-        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 200px; box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1); z-index: 1000; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 220px; box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1); z-index: 1000; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .dropdown-content a { color: #1e293b; padding: 12px 16px; text-decoration: none; display: block; font-size: 13px; transition: 0.2s; border-bottom: 1px solid #f1f5f9; }
+        .dropdown-content a:hover { background-color: #f8fafc; color: var(--primary); }
         .show { display: block; }
+        
         .upload-card { background: white; padding: 40px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 30px; }
     </style>
 </head>
@@ -106,8 +110,9 @@
                         <i class="fas fa-download"></i> Export <i class="fas fa-caret-down"></i>
                     </button>
                     <div id="downloadMenu" class="dropdown-content">
-                        <a href="#" onclick="exportData('full')">Full Report</a>
-                        <a href="#" onclick="exportData('mapped')">Mapped Only</a>
+                        <a href="#" onclick="exportData('mapped')">1) Mapped (Matched/Delivered)</a>
+                        <a href="#" onclick="exportData('unmapped')">2) Unmapped (Missing)</a>
+                        <a href="#" onclick="exportData('extra')">3) Extra (Not in Excel)</a>
                     </div>
                 </div>
             </div>
@@ -233,22 +238,15 @@
             tableBody.innerHTML = '';
             if (dataArray.length > 0) document.getElementById('uploadCard').style.display = "none";
 
-            // --- REVISED SORTING LOGIC ---
-            // DELIVERED (Manual) = 2 (Top)
-            // MATCHED (Firebase) = 1 (Middle)
-            // Unmapped = 0 (Bottom)
             const sortedData = [...dataArray].sort((a, b) => {
                 const vinA = String(a['VIN No.']).trim();
                 const isMatchedA = scanDetails.some(s => s.barcode === vinA);
                 const isDeliveredA = a.manualDelivered === true;
-
                 const vinB = String(b['VIN No.']).trim();
                 const isMatchedB = scanDetails.some(s => s.barcode === vinB);
                 const isDeliveredB = b.manualDelivered === true;
-
                 const scoreA = isDeliveredA ? 2 : (isMatchedA ? 1 : 0);
                 const scoreB = isDeliveredB ? 2 : (isMatchedB ? 1 : 0);
-
                 return scoreB - scoreA;
             });
 
@@ -266,7 +264,6 @@
                 let auditor = '---';
                 let method = '---';
 
-                // Manual Delivery Badge (Blue) takes sorting priority, but logic displays check
                 if (isDelivered) {
                     statusHTML = `<span class="delivered-badge">DELIVERED</span>`;
                     rowClass = 'row-delivered';
@@ -321,6 +318,59 @@
 
         function toggleDownloadMenu() { document.getElementById("downloadMenu").classList.toggle("show"); }
         
+        // --- UPDATED EXPORT LOGIC ---
+        function exportData(type) {
+            let dataToExport = [];
+            const excelVins = currentMasterData.map(r => String(r['VIN No.']).trim());
+
+            if (type === 'mapped') {
+                dataToExport = currentMasterData.filter(row => {
+                    const vin = String(row['VIN No.']).trim();
+                    const isScanned = scanDetails.some(s => s.barcode === vin);
+                    return isScanned || row.manualDelivered === true;
+                }).map(row => {
+                    const vin = String(row['VIN No.']).trim();
+                    const match = scanDetails.find(s => s.barcode === vin);
+                    return {
+                        ...row,
+                        'Audit Status': row.manualDelivered ? 'DELIVERED' : 'MATCHED',
+                        'Auditor': row.manualDelivered ? 'Admin' : (match ? match.auditor : 'N/A'),
+                        'Audit Time': row.manualDelivered ? formatManualTime(row.manualTime) : (match ? match.time : 'N/A'),
+                        'Audit Location': match ? `${match.city} ${match.branch}` : (row.manualDelivered ? 'Main Office' : 'N/A')
+                    };
+                });
+            } 
+            else if (type === 'unmapped') {
+                dataToExport = currentMasterData.filter(row => {
+                    const vin = String(row['VIN No.']).trim();
+                    const isScanned = scanDetails.some(s => s.barcode === vin);
+                    return !isScanned && !row.manualDelivered;
+                }).map(row => ({...row, 'Audit Status': 'NOT FOUND'}));
+            } 
+            else if (type === 'extra') {
+                dataToExport = scanDetails.filter(scan => !excelVins.includes(scan.barcode))
+                    .map(scan => ({
+                        'VIN No.': scan.barcode,
+                        'Auditor Name': scan.auditor,
+                        'Scan Time': scan.time,
+                        'Method': scan.method,
+                        'Location': `${scan.city} ${scan.branch}`,
+                        'Remark': 'Found in scans but not in Master Excel'
+                    }));
+            }
+
+            if (dataToExport.length === 0) {
+                alert("No data available to export for this category.");
+                return;
+            }
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
+            XLSX.writeFile(wb, `Audit_${type.toUpperCase()}_${new Date().toISOString().slice(0,10)}.xlsx`);
+            document.getElementById("downloadMenu").classList.remove("show");
+        }
+
         function renderStoredData() {
             const stored = localStorage.getItem('auditExcelData');
             if (stored) { 
@@ -355,11 +405,17 @@
             reader.readAsArrayBuffer(file);
         });
 
-        function exportData(type) {
-            const ws = XLSX.utils.json_to_sheet(currentMasterData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Report");
-            XLSX.writeFile(wb, "StockReport.xlsx");
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.matches('.btn-upload')) {
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                for (var i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
         }
     </script>
     <script src="sidebar.js"></script>
