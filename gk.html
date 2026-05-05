@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Bulk CSV Upload</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; line-height: 1.6; background-color: #f4f7f6; }
+        .container { max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 30px; border-radius: 12px; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #333; margin-top: 0; }
+        input { margin: 20px 0; display: block; width: 100%; }
+        button { background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background: #43a047; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #status { margin-top: 20px; font-weight: bold; padding: 10px; border-radius: 4px; text-align: center; }
+        .info { font-size: 0.9em; color: #666; background: #fff3e0; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 5px solid #ff9800; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Bulk CSV Upload to Firestore</h2>
+    <div class="info">
+        <b>Required CSV Headers:</b><br>
+        Date, Time, ID_Number, Auditor, City, Branch, Method, Remarks
+    </div>
+    
+    <input type="file" id="csvFile" accept=".csv" />
+    <button id="uploadBtn">Upload CSV to Firebase</button>
+    
+    <div id="status"></div>
+</div>
+gk.html
+<script>
+    // Firebase Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+        authDomain: "sams-e7c4b.firebaseapp.com",
+        projectId: "sams-e7c4b",
+        storageBucket: "sams-e7c4b.firebasestorage.app",
+        messagingSenderId: "829551028089",
+        appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('csvFile');
+    const status = document.getElementById('status');
+
+    uploadBtn.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+            alert("Please select a CSV file first!");
+            return;
+        }
+
+        status.style.color = "black";
+        status.innerText = "Processing CSV...";
+        uploadBtn.disabled = true;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = e.target.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+                if (jsonData.length === 0) throw new Error("File is empty.");
+
+                const totalRecords = jsonData.length;
+                const chunkSize = 400; 
+                let uploadedCount = 0;
+
+                for (let i = 0; i < totalRecords; i += chunkSize) {
+                    const batch = db.batch();
+                    const chunk = jsonData.slice(i, i + chunkSize);
+
+                    chunk.forEach((row) => {
+                        const docRef = db.collection("tv_audit").doc();
+                        
+                        // --- IMPROVED DATE PARSING ---
+                        let finalDate;
+                        try {
+                            if (row.Date && row.Time) {
+                                // 1. Split DD-MM-YYYY or DD/MM/YYYY
+                                const dateParts = row.Date.toString().split(/[-/]/);
+                                // 2. Rearrange to YYYY, MM (0-indexed), DD
+                                // Note: month - 1 because JS months are 0-11
+                                const year = parseInt(dateParts[2]);
+                                const month = parseInt(dateParts[1]) - 1;
+                                const day = parseInt(dateParts[0]);
+
+                                // 3. Parse Time (e.g., "6:18:34 PM")
+                                const timeStr = row.Time.toString();
+                                const [time, modifier] = timeStr.split(' ');
+                                let [hours, minutes, seconds] = time.split(':');
+
+                                if (hours === '12') hours = '00';
+                                if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+
+                                finalDate = new Date(year, month, day, hours, minutes, seconds);
+                            } else {
+                                finalDate = new Date();
+                            }
+                        } catch (err) {
+                            finalDate = new Date(); // Fallback to current time if specific row fails
+                        }
+
+                        // Verify if date is valid, if not, use current time
+                        if (isNaN(finalDate.getTime())) finalDate = new Date();
+
+                        batch.set(docRef, {
+                            auditBy_Name: row.Auditor || "System",
+                            auditLocation_Branch: row.Branch || "N/A",
+                            auditLocation_City: row.City || "N/A",
+                            idNumber: row.ID_Number || "N/A",
+                            method: row.Method || "Manual",
+                            remarks: row.Remarks || "",
+                            timestamp: firebase.firestore.Timestamp.fromDate(finalDate)
+                        });
+                    });
+
+                    await batch.commit();
+                    uploadedCount += chunk.length;
+                    status.innerText = `Uploading... ${uploadedCount} / ${totalRecords}`;
+                }
+
+                status.style.color = "green";
+                status.innerText = `✅ Uploaded ${uploadedCount} records successfully!`;
+                fileInput.value = ""; 
+
+            } catch (error) {
+                console.error(error);
+                status.style.color = "red";
+                status.innerText = "❌ Error: " + error.message;
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        };
+        reader.readAsBinaryString(file);
+    });
+</script>
+
+</body>
+</html>

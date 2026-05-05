@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infoman Portal | Login</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        h2 { color: #333; margin-bottom: 20px; }
+        
+        .input-group {
+            text-align: left;
+            margin-bottom: 15px;
+        }
+
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+
+        input[type="tel"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            outline-color: #2563eb;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        .login-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+
+        .login-btn:hover { background: #1d4ed8; }
+
+        .error-msg {
+            color: #dc2626;
+            font-size: 0.85em;
+            margin-top: 15px;
+            display: none;
+            padding: 8px;
+            background: #fee2e2;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="login-screen">
+        <h2>System Login</h2>
+        <form id="loginForm">
+            <div class="input-group">
+                <label>Phone Number</label>
+                <input type="tel" id="phone" placeholder="9824652599" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Infoman@11" required>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="remember">
+                <label for="remember" style="margin:0 0 0 8px; font-weight: normal; cursor: pointer;">
+                    Remember me for 30 days
+                </label>
+            </div>
+            <button type="submit" class="login-btn">Login</button>
+            <div id="error" class="error-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        // --- 1. AUTO-LOGIN CHECK (Runs on Page Load) ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const isRemembered = localStorage.getItem('rememberUser');
+            const loginExpiry = localStorage.getItem('loginExpiry');
+            const now = new Date().getTime();
+
+            // If "Remember Me" is active and the 30-day timer hasn't expired
+            if (isRemembered === 'true' && loginExpiry && now < parseInt(loginExpiry)) {
+                console.log("Auto-login active. Redirecting...");
+                window.location.href = "dashboard.html";
+            } else if (loginExpiry && now >= parseInt(loginExpiry)) {
+                // If expired, clear the old data
+                localStorage.removeItem('rememberUser');
+                localStorage.removeItem('loginExpiry');
+            }
+        });
+
+        // --- 2. MANUAL LOGIN LOGIC ---
+        const loginForm = document.getElementById('loginForm');
+        const errorDiv = document.getElementById('error');
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const phoneInput = document.getElementById('phone').value;
+            const passInput = document.getElementById('password').value;
+            const isRemembered = document.getElementById('remember').checked;
+
+            // Credentials Validation
+            if (phoneInput === "9824652599" && passInput === "Infoman@11") {
+                
+                // If "Remember Me" is checked, set the 30-day expiry
+                if (isRemembered) {
+                    const now = new Date();
+                    const expiration = now.getTime() + (30 * 24 * 60 * 60 * 1000); // 30 days in ms
+                    
+                    localStorage.setItem('rememberUser', 'true');
+                    localStorage.setItem('loginExpiry', expiration);
+                } else {
+                    // If they didn't check "Remember Me", clear any existing old data
+                    localStorage.removeItem('rememberUser');
+                    localStorage.removeItem('loginExpiry');
+                }
+
+                // Redirect to dashboard.php
+                window.location.href = "dashboard.php";
+                
+            } else {
+                // Show error message
+                errorDiv.style.display = 'block';
+                errorDiv.innerText = "Invalid Phone Number or Password.";
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMS | Suzuki Admin Audit</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root { --primary: #2563eb; --secondary: #0f172a; --bg: #f1f5f9; --white: #ffffff; --excel-red: #e11d48; --success-bg: #dcfce7; --delivered-blue: #2563eb; }
+        
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; width: calc(100% - 260px); box-sizing: border-box; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; }
+        
+        .search-container { position: relative; flex-grow: 1; max-width: 450px; }
+        .search-container i { position: absolute; left: 15px; top: 12px; color: #64748b; }
+        .search-input { width: 100%; padding: 10px 15px 10px 45px; border-radius: 10px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; transition: 0.3s; }
+
+        .btn-upload { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+        
+        .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: auto; max-height: 72vh; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 3300px; }
+        
+        thead th { position: sticky; top: 0; z-index: 20; padding: 14px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; color: white; white-space: nowrap; }
+        .th-action { background-color: #64748b !important; text-align: center; width: 60px; }
+        .th-audit { background-color: #0f172a !important; }
+        .th-scan { background-color: #2563eb !important; }
+        .th-excel { background-color: #e11d48 !important; }
+        
+        tbody td { padding: 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; white-space: nowrap; }
+        
+        .row-matched { background-color: var(--success-bg) !important; }
+        .row-delivered { background-color: #e0f2fe !important; } 
+
+        .mapped-badge { background: #166534; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        .delivered-badge { background: var(--delivered-blue); color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        
+        .btn-edit { color: var(--primary); cursor: pointer; font-size: 16px; background: none; border: none; transition: 0.2s; }
+        .btn-edit:hover { transform: scale(1.2); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-content h2 { font-size: 18px; margin-top: 0; color: var(--secondary); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #64748b; }
+        .form-group input[type="datetime-local"] { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-cancel { background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
+        .btn-save { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
+
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 220px; box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1); z-index: 1000; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .dropdown-content a { color: #1e293b; padding: 12px 16px; text-decoration: none; display: block; font-size: 13px; transition: 0.2s; border-bottom: 1px solid #f1f5f9; }
+        .dropdown-content a:hover { background-color: #f8fafc; color: var(--primary); }
+        .show { display: block; }
+        
+        .upload-card { background: white; padding: 40px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 30px; }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar-container"></div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-content">
+            <h2>Suzuki: Update Status</h2>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                <input type="checkbox" id="deliveredCheck" style="width: 18px; height: 18px; cursor: pointer;">
+                <label for="deliveredCheck" style="margin-bottom: 0; cursor: pointer;">Delivered?</label>
+            </div>  
+            
+            <div id="dateTimeFields" style="display: none; margin-top: 15px;">
+                <div class="form-group">
+                    <label>Manual Update Date & Time</label>
+                    <input type="datetime-local" id="manualDateTime">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-save" onclick="saveManualStatus()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="main-content">
+        <header>
+            <div>
+                <h1 style="margin:0; font-size: 22px; color: #0f172a;">Suzuki Admin Stock Audit</h1>
+                <p style="margin:5px 0 0; color: #64748b;">Status: <span id="syncStatus" style="font-weight: 700; color: var(--excel-red);">Waiting...</span></p>
+            </div>
+
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="universalSearch" class="search-input" placeholder="Search Suzuki VIN, Model, Auditor...">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-upload" style="background: #10b981;" onclick="loadFirebaseScans()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <div class="dropdown">
+                    <button class="btn-upload" style="background: #6366f1;" onclick="toggleDownloadMenu()">
+                        <i class="fas fa-download"></i> Export <i class="fas fa-caret-down"></i>
+                    </button>
+                    <div id="downloadMenu" class="dropdown-content">
+                        <a href="#" onclick="exportData('mapped')">1) Mapped (Matched/Delivered)</a>
+                        <a href="#" onclick="exportData('unmapped')">2) Unmapped (Missing)</a>
+                        <a href="#" onclick="exportData('extra')">3) Extra (Not in Excel)</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="upload-card" id="uploadCard">
+            <i class="fas fa-file-excel" style="font-size: 48px; color: #10b981; margin-bottom: 15px;"></i>
+            <h3>Upload Suzuki Master Inventory</h3>
+            <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
+            <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Select Excel File</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="auditGrid">
+                <thead>
+                    <tr>
+                        <th class="th-action">Edit</th>
+                        <th class="th-audit">Status</th>
+                        <th class="th-scan">Auditor Name</th>
+                        <th class="th-scan">Entry Method</th>
+                        <th class="th-scan">Scan Location</th>
+                        <th class="th-scan">Scan Time</th>
+                        <th class="th-excel">SNO</th>
+                        <th class="th-excel">Outlet Name</th>
+                        <th class="th-excel">Model</th>
+                        <th class="th-excel">SubModel</th>
+                        <th class="th-excel">Color</th>
+                        <th class="th-excel">Fuel Type</th>
+                        <th class="th-excel">VIN No.</th>
+                        <th class="th-excel">Chassis Number</th>
+                        <th class="th-excel">Engine Number</th>
+                        <th class="th-excel">Stock Location</th>
+                        <th class="th-excel">Current Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+            authDomain: "sams-e7c4b.firebaseapp.com",
+            projectId: "sams-e7c4b",
+            storageBucket: "sams-e7c4b.firebasestorage.app",
+            messagingSenderId: "829551028089",
+            appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let scanDetails = [];
+        let currentMasterData = []; 
+        let currentEditVin = null;
+        
+        // UNIQUE KEY FOR SUZUKI TO PREVENT OVERWRITING GENERAL DATA
+        const LOCAL_STORAGE_KEY = 'suzukiAuditExcelData';
+
+        const modal = document.getElementById('editModal');
+        const deliveredCheck = document.getElementById('deliveredCheck');
+        const dateTimeFields = document.getElementById('dateTimeFields');
+
+        deliveredCheck.addEventListener('change', () => {
+            dateTimeFields.style.display = deliveredCheck.checked ? 'block' : 'none';
+        });
+
+        function handleEdit(vin) {
+            currentEditVin = String(vin).trim();
+            const rowData = currentMasterData.find(r => String(r['VIN No.']).trim() === currentEditVin);
+            if (rowData) {
+                deliveredCheck.checked = rowData.manualDelivered === true;
+                dateTimeFields.style.display = deliveredCheck.checked ? 'block' : 'none';
+                document.getElementById('manualDateTime').value = rowData.manualTime || "";
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeModal() { modal.style.display = 'none'; }
+
+        function saveManualStatus() {
+            const index = currentMasterData.findIndex(r => String(r['VIN No.']).trim() === currentEditVin);
+            if (index !== -1) {
+                currentMasterData[index].manualDelivered = deliveredCheck.checked;
+                currentMasterData[index].manualTime = document.getElementById('manualDateTime').value;
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentMasterData));
+                renderTable(currentMasterData);
+            }
+            closeModal();
+        }
+
+        function formatAuditTime(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return date.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+        }
+
+        function formatManualTime(isoStr) {
+            if (!isoStr) return 'N/A';
+            const d = new Date(isoStr);
+            return d.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+        }
+
+        async function loadFirebaseScans() {
+            try {
+                // POINTING TO SUZUKI AUDITS COLLECTION
+                const snapshot = await db.collection('suzuki_audits').get();
+                scanDetails = snapshot.docs.map(doc => {
+                    const d = doc.data();
+                    return {
+                        barcode: String(d.barcodeData || '').trim(),
+                        auditor: d.auditBy_Name || "System",
+                        method: d.entryMethod || "Manual",
+                        city: d.auditLocation_City || "",
+                        branch: d.auditLocation_Branch || "",
+                        time: formatAuditTime(d.timestamp)
+                    };
+                });
+                document.getElementById('syncStatus').innerText = `Suzuki Scans Synced (${scanDetails.length})`;
+                document.getElementById('syncStatus').style.color = "#10b981";
+                renderStoredData();
+            } catch (err) { console.error(err); }
+        }
+
+        function renderTable(dataArray) {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            if (dataArray.length > 0) document.getElementById('uploadCard').style.display = "none";
+
+            const sortedData = [...dataArray].sort((a, b) => {
+                const vinA = String(a['VIN No.']).trim();
+                const isMatchedA = scanDetails.some(s => s.barcode === vinA);
+                const isDeliveredA = a.manualDelivered === true;
+                const vinB = String(b['VIN No.']).trim();
+                const isMatchedB = scanDetails.some(s => s.barcode === vinB);
+                const isDeliveredB = b.manualDelivered === true;
+                const scoreA = isDeliveredA ? 2 : (isMatchedA ? 1 : 0);
+                const scoreB = isDeliveredB ? 2 : (isMatchedB ? 1 : 0);
+                return scoreB - scoreA;
+            });
+
+            sortedData.forEach(row => {
+                const vin = String(row['VIN No.'] || '').trim();
+                const chassis = String(row['Chassis Number'] || '').trim();
+                const match = scanDetails.find(s => s.barcode === vin || s.barcode === chassis);
+
+                const isMatched = !!match;
+                const isDelivered = row.manualDelivered === true;
+
+                let statusHTML = '---';
+                let rowClass = '';
+                let scanTime = '---';
+                let auditor = '---';
+                let method = '---';
+
+                if (isDelivered) {
+                    statusHTML = `<span class="delivered-badge">DELIVERED</span>`;
+                    rowClass = 'row-delivered';
+                    scanTime = formatManualTime(row.manualTime);
+                    auditor = 'Admin (Manual)';
+                    method = 'Manual Entry';
+                } else if (isMatched) {
+                    statusHTML = `<span class="mapped-badge">MATCHED</span>`;
+                    rowClass = 'row-matched';
+                    scanTime = match.time;
+                    auditor = match.auditor;
+                    method = match.method;
+                }
+
+                const tr = document.createElement('tr');
+                if (rowClass) tr.className = rowClass;
+
+                tr.innerHTML = `
+                    <td style="text-align:center">
+                        <button class="btn-edit" onclick="handleEdit('${vin}')"><i class="fas fa-pencil-alt"></i></button>
+                    </td>
+                    <td style="text-align:center">${statusHTML}</td>
+                    <td>${auditor}</td>
+                    <td>${method}</td>
+                    <td>${match ? (match.city + " " + match.branch) : (isDelivered ? 'Main Office' : '---')}</td>
+                    <td>${scanTime}</td>
+                    <td>${row['SNO'] || ''}</td>
+                    <td>${row['Outlet Name'] || ''}</td>
+                    <td>${row['Model'] || ''}</td>
+                    <td>${row['SubModel'] || ''}</td>
+                    <td>${row['Color'] || ''}</td>
+                    <td>${row['Fuel Type'] || ''}</td>
+                    <td style="font-weight:700;">${vin}</td>
+                    <td>${chassis}</td>
+                    <td>${row['Engine Number'] || ''}</td>
+                    <td>${row['Stock Location'] || ''}</td>
+                    <td>${row['Current Status'] || ''}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('universalSearch').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            if (!term) { renderTable(currentMasterData); return; }
+            const filtered = currentMasterData.filter(row => 
+                String(row['VIN No.'] || '').toLowerCase().includes(term) || 
+                String(row['Model'] || '').toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        });
+
+        function toggleDownloadMenu() { document.getElementById("downloadMenu").classList.toggle("show"); }
+        
+        function exportData(type) {
+            let dataToExport = [];
+            const excelVins = currentMasterData.map(r => String(r['VIN No.']).trim());
+
+            if (type === 'mapped') {
+                dataToExport = currentMasterData.filter(row => {
+                    const vin = String(row['VIN No.']).trim();
+                    const isScanned = scanDetails.some(s => s.barcode === vin);
+                    return isScanned || row.manualDelivered === true;
+                }).map(row => {
+                    const vin = String(row['VIN No.']).trim();
+                    const match = scanDetails.find(s => s.barcode === vin);
+                    return {
+                        ...row,
+                        'Audit Status': row.manualDelivered ? 'DELIVERED' : 'MATCHED',
+                        'Auditor': row.manualDelivered ? 'Admin' : (match ? match.auditor : 'N/A'),
+                        'Audit Time': row.manualDelivered ? formatManualTime(row.manualTime) : (match ? match.time : 'N/A'),
+                        'Audit Location': match ? `${match.city} ${match.branch}` : (row.manualDelivered ? 'Main Office' : 'N/A')
+                    };
+                });
+            } 
+            else if (type === 'unmapped') {
+                dataToExport = currentMasterData.filter(row => {
+                    const vin = String(row['VIN No.']).trim();
+                    const isScanned = scanDetails.some(s => s.barcode === vin);
+                    return !isScanned && !row.manualDelivered;
+                }).map(row => ({...row, 'Audit Status': 'NOT FOUND'}));
+            } 
+            else if (type === 'extra') {
+                dataToExport = scanDetails.filter(scan => !excelVins.includes(scan.barcode))
+                    .map(scan => ({
+                        'VIN No.': scan.barcode,
+                        'Auditor Name': scan.auditor,
+                        'Scan Time': scan.time,
+                        'Method': scan.method,
+                        'Location': `${scan.city} ${scan.branch}`,
+                        'Remark': 'Found in scans but not in Suzuki Master Excel'
+                    }));
+            }
+
+            if (dataToExport.length === 0) {
+                alert("No data available to export for this category.");
+                return;
+            }
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Suzuki Report");
+            XLSX.writeFile(wb, `Suzuki_Audit_${type.toUpperCase()}_${new Date().toISOString().slice(0,10)}.xlsx`);
+            document.getElementById("downloadMenu").classList.remove("show");
+        }
+
+        function renderStoredData() {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) { 
+                currentMasterData = JSON.parse(stored); 
+                renderTable(currentMasterData); 
+            }
+        }
+
+        window.onload = loadFirebaseScans;
+
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                const existingData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
+                currentMasterData = jsonData.map(row => {
+                    const oldRow = existingData.find(ex => String(ex['VIN No.']).trim() === String(row['VIN No.']).trim());
+                    return {
+                        ...row,
+                        manualDelivered: oldRow ? oldRow.manualDelivered : false,
+                        manualTime: oldRow ? oldRow.manualTime : ""
+                    };
+                });
+
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentMasterData));
+                renderTable(currentMasterData);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        window.onclick = function(event) {
+            if (!event.target.matches('.btn-upload')) {
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                for (var i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="sidebar.js"></script>
+</body>
+</html>

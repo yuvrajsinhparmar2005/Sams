@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMS | Ather Admin Audit</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root { --primary: #2563eb; --secondary: #0f172a; --bg: #f1f5f9; --white: #ffffff; --excel-red: #e11d48; --success-bg: #dcfce7; --delivered-blue: #2563eb; --ather-green: #10b981; }
+        
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); display: flex; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 40px; width: calc(100% - 260px); box-sizing: border-box; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; }
+        
+        .search-container { position: relative; flex-grow: 1; max-width: 450px; }
+        .search-container i { position: absolute; left: 15px; top: 12px; color: #64748b; }
+        .search-input { width: 100%; padding: 10px 15px 10px 45px; border-radius: 10px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; transition: 0.3s; }
+
+        .btn-upload { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+        
+        .table-wrapper { background: white; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); overflow: auto; max-height: 72vh; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 2500px; }
+        
+        thead th { position: sticky; top: 0; z-index: 20; padding: 14px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; color: white; white-space: nowrap; }
+        .th-action { background-color: #64748b !important; text-align: center; width: 60px; }
+        .th-audit { background-color: #0f172a !important; }
+        .th-scan { background-color: var(--ather-green) !important; }
+        .th-excel { background-color: #e11d48 !important; }
+        
+        tbody td { padding: 12px; font-size: 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; white-space: nowrap; }
+        
+        .row-matched { background-color: var(--success-bg) !important; }
+        .row-delivered { background-color: #e0f2fe !important; } 
+
+        .mapped-badge { background: #166534; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        .delivered-badge { background: var(--delivered-blue); color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; }
+        
+        .btn-edit { color: var(--primary); cursor: pointer; font-size: 16px; background: none; border: none; transition: 0.2s; }
+        .btn-edit:hover { transform: scale(1.2); }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-content h2 { font-size: 18px; margin-top: 0; color: var(--secondary); }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 220px; box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.1); z-index: 1000; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .dropdown-content a { color: #1e293b; padding: 12px 16px; text-decoration: none; display: block; font-size: 13px; transition: 0.2s; border-bottom: 1px solid #f1f5f9; }
+        .dropdown-content a:hover { background-color: #f8fafc; color: var(--primary); }
+        .show { display: block; }
+        
+        .upload-card { background: white; padding: 40px; border-radius: 16px; border: 2px dashed #cbd5e1; text-align: center; margin-bottom: 30px; }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar-container"></div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-content">
+            <h2>Update Delivery Status</h2>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                <input type="checkbox" id="deliveredCheck" style="width: 18px; height: 18px; cursor: pointer;">
+                <label for="deliveredCheck" style="margin-bottom: 0; cursor: pointer;">Mark as Delivered</label>
+            </div>
+            
+            <div id="dateTimeFields" style="display: none; margin-top: 15px;">
+                <label style="display:block; font-size:12px; color:#64748b; margin-bottom:5px;">Delivery Date & Time</label>
+                <input type="datetime-local" id="manualDateTime" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" style="background:#e2e8f0; border:none; padding:8px 15px; border-radius:6px; cursor:pointer;" onclick="closeModal()">Cancel</button>
+                <button class="btn-save" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer;" onclick="saveManualStatus()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="main-content">
+        <header>
+            <div>
+                <h1 style="margin:0; font-size: 22px; color: #0f172a;">Ather Admin Audit Mapping</h1>
+                <p style="margin:5px 0 0; color: #64748b;">Status: <span id="syncStatus" style="font-weight: 700; color: var(--excel-red);">Waiting...</span></p>
+            </div>
+
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="universalSearch" class="search-input" placeholder="Search VIN, Auditor, Remarks...">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-upload" style="background: var(--ather-green);" onclick="loadAtherScans()">
+                    <i class="fas fa-sync-alt"></i> Refresh Scans
+                </button>
+                <div class="dropdown">
+                    <button class="btn-upload" style="background: #6366f1;" onclick="toggleDownloadMenu()">
+                        <i class="fas fa-download"></i> Export <i class="fas fa-caret-down"></i>
+                    </button>
+                    <div id="downloadMenu" class="dropdown-content">
+                        <a href="#" onclick="exportData('mapped')">Mapped (Matched/Delivered)</a>
+                        <a href="#" onclick="exportData('unmapped')">Unmapped (Missing)</a>
+                        <a href="#" onclick="exportData('extra')">Extra (Not in Excel)</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="upload-card" id="uploadCard">
+            <i class="fas fa-file-excel" style="font-size: 48px; color: var(--ather-green); margin-bottom: 15px;"></i>
+            <h3>Upload Ather Master Excel</h3>
+            <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
+            <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Select Excel File</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="auditGrid">
+                <thead>
+                    <tr>
+                        <th class="th-action">Edit</th>
+                        <th class="th-audit">Status</th>
+                        <th class="th-scan">Auditor</th>
+                        <th class="th-scan">Method</th>
+                        <th class="th-scan">Scan Time</th>
+                        <th class="th-scan">Audit Remarks</th>
+                        <th class="th-excel">VIN Number</th>
+                        <th class="th-excel">Model</th>
+                        <th class="th-excel">Branch</th>
+                        <th class="th-excel">City</th>
+                        <th class="th-excel">Stock Location</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // FIREBASE CONFIGURATION (Using your provided config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+            authDomain: "sams-e7c4b.firebaseapp.com",
+            projectId: "sams-e7c4b",
+            storageBucket: "sams-e7c4b.firebasestorage.app",
+            messagingSenderId: "829551028089",
+            appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let scanDetails = [];
+        let currentMasterData = []; 
+        let currentEditVin = null;
+
+        const modal = document.getElementById('editModal');
+        const deliveredCheck = document.getElementById('deliveredCheck');
+        const dateTimeFields = document.getElementById('dateTimeFields');
+
+        deliveredCheck.addEventListener('change', () => {
+            dateTimeFields.style.display = deliveredCheck.checked ? 'block' : 'none';
+        });
+
+        // LOAD SCANS FROM THE NEW COLLECTION
+        async function loadAtherScans() {
+            try {
+                // Fetching from the collection you specified in Flutter
+                const snapshot = await db.collection('Ather_Stock_Audit').get();
+                scanDetails = snapshot.docs.map(doc => {
+                    const d = doc.data();
+                    return {
+                        barcode: String(d.barcode || '').trim(),
+                        auditor: d.auditor_name || "N/A",
+                        method: d.method || "Manual",
+                        city: d.city || "",
+                        branch: d.branch || "",
+                        remarks: d.remarks || "No Remarks",
+                        time: formatAuditTime(d.timestamp)
+                    };
+                });
+                document.getElementById('syncStatus').innerText = `Scans Synced (${scanDetails.length})`;
+                document.getElementById('syncStatus').style.color = "#10b981";
+                renderStoredData();
+            } catch (err) { console.error("Firebase Error:", err); }
+        }
+
+        function formatAuditTime(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return date.toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+        }
+
+        function renderTable(dataArray) {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            if (dataArray.length > 0) document.getElementById('uploadCard').style.display = "none";
+
+            dataArray.forEach(row => {
+                const vin = String(row['VIN No.'] || row['VIN Number'] || '').trim();
+                const match = scanDetails.find(s => s.barcode === vin);
+
+                const isMatched = !!match;
+                const isDelivered = row.manualDelivered === true;
+
+                let statusHTML = '---';
+                let rowClass = '';
+                let scanTime = '---';
+                let auditor = '---';
+                let method = '---';
+                let remarks = '---';
+
+                if (isDelivered) {
+                    statusHTML = `<span class="delivered-badge">DELIVERED</span>`;
+                    rowClass = 'row-delivered';
+                    scanTime = row.manualTime ? new Date(row.manualTime).toLocaleString() : 'N/A';
+                    auditor = 'Admin';
+                    method = 'Manual Force';
+                } else if (isMatched) {
+                    statusHTML = `<span class="mapped-badge">MATCHED</span>`;
+                    rowClass = 'row-matched';
+                    scanTime = match.time;
+                    auditor = match.auditor;
+                    method = match.method;
+                    remarks = match.remarks;
+                }
+
+                const tr = document.createElement('tr');
+                if (rowClass) tr.className = rowClass;
+
+                tr.innerHTML = `
+                    <td style="text-align:center">
+                        <button class="btn-edit" onclick="handleEdit('${vin}')"><i class="fas fa-pencil-alt"></i></button>
+                    </td>
+                    <td style="text-align:center">${statusHTML}</td>
+                    <td>${auditor}</td>
+                    <td>${method}</td>
+                    <td>${scanTime}</td>
+                    <td style="color:#64748b; font-style:italic;">${remarks}</td>
+                    <td style="font-weight:700;">${vin}</td>
+                    <td>${row['Model'] || ''}</td>
+                    <td>${row['Branch'] || ''}</td>
+                    <td>${row['City'] || ''}</td>
+                    <td>${row['Stock Location'] || ''}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Search logic
+        document.getElementById('universalSearch').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            const filtered = currentMasterData.filter(row => 
+                Object.values(row).some(val => String(val).toLowerCase().includes(term))
+            );
+            renderTable(filtered);
+        });
+
+        // Modal Logic
+        function handleEdit(vin) {
+            currentEditVin = vin;
+            modal.style.display = 'flex';
+        }
+        function closeModal() { modal.style.display = 'none'; }
+        function saveManualStatus() {
+            const idx = currentMasterData.findIndex(r => String(r['VIN No.'] || r['VIN Number']).trim() === currentEditVin);
+            if (idx !== -1) {
+                currentMasterData[idx].manualDelivered = deliveredCheck.checked;
+                currentMasterData[idx].manualTime = document.getElementById('manualDateTime').value;
+                localStorage.setItem('atherAuditData', JSON.stringify(currentMasterData));
+                renderTable(currentMasterData);
+            }
+            closeModal();
+        }
+
+        // Excel Export Logic
+        function toggleDownloadMenu() { document.getElementById("downloadMenu").classList.toggle("show"); }
+        function exportData(type) {
+            let list = [];
+            const excelVins = currentMasterData.map(r => String(r['VIN No.'] || r['VIN Number']).trim());
+
+            if(type === 'mapped') {
+                list = currentMasterData.filter(r => {
+                    const v = String(r['VIN No.'] || r['VIN Number']).trim();
+                    return scanDetails.some(s => s.barcode === v) || r.manualDelivered;
+                });
+            } else if(type === 'unmapped') {
+                list = currentMasterData.filter(r => {
+                    const v = String(r['VIN No.'] || r['VIN Number']).trim();
+                    return !scanDetails.some(s => s.barcode === v) && !r.manualDelivered;
+                });
+            } else if(type === 'extra') {
+                list = scanDetails.filter(s => !excelVins.includes(s.barcode));
+            }
+
+            const ws = XLSX.utils.json_to_sheet(list);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Ather Report");
+            XLSX.writeFile(wb, `Ather_${type}_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // File Upload
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const workbook = XLSX.read(new Uint8Array(event.target.result), {type: 'array'});
+                currentMasterData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                localStorage.setItem('atherAuditData', JSON.stringify(currentMasterData));
+                renderTable(currentMasterData);
+            };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        });
+
+        function renderStoredData() {
+            const stored = localStorage.getItem('atherAuditData');
+            if (stored) { 
+                currentMasterData = JSON.parse(stored); 
+                renderTable(currentMasterData); 
+            }
+        }
+
+        window.onload = loadAtherScans;
+        window.onclick = (e) => { if (!e.target.matches('.btn-upload')) document.getElementById("downloadMenu").classList.remove("show"); }
+    </script>
+    <script src="sidebar.js"></script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMS | Suzuki Admin Audit</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --danger: #ef4444; --border: #e2e8f0; --white: #ffffff; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; display: flex; }
+        .main-content { margin-left: 260px; flex-grow: 1; padding: 2rem 3rem; min-height: 100vh; }
+        
+        .page-header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: white; padding: 1.5rem; border-radius: 16px; 
+            border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 2rem; 
+        }
+        
+        .controls { display: flex; gap: 12px; }
+        .btn { padding: 0.7rem 1.2rem; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-primary { background: var(--primary); color: white; }
+        
+        .table-card { background: white; border-radius: 20px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 10px 15px rgba(0,0,0,0.04); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 1.25rem; background: #f1f5f9; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; }
+        td { padding: 1.25rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        
+        .barcode-badge { font-family: monospace; font-weight: 700; color: var(--primary); background: #eff6ff; padding: 4px 10px; border-radius: 6px; }
+        .audit-img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; cursor: pointer; border: 1px solid var(--border); transition: 0.2s; }
+        .audit-img:hover { transform: scale(1.1); }
+        
+        #loading { padding: 5rem; text-align: center; color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <div>
+                <h1 style="margin:0; font-size: 1.7rem;">Suzuki Admin Audit</h1>
+                <p style="margin:0; color: #64748b;">Manage and archive Suzuki verification logs</p>
+            </div>
+            
+            <div class="controls">
+                <select id="city-filter" onchange="fetchAuditData()" style="padding:10px; border-radius:10px; border:1px solid var(--border); outline:none;">
+                    <option value="">All Cities</option>
+                    <option value="Ahmedabad">Ahmedabad</option>
+                    <option value="Himmatnagar">Himmatnagar</option>
+                </select>
+
+                <button class="btn btn-danger" onclick="freezeAndClear()" id="freeze-btn">
+                    <i class="fas fa-snowflake"></i> Freeze & Clear
+                </button>
+
+                <button class="btn btn-primary" onclick="fetchAuditData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </header>
+
+        <section class="table-card">
+            <div id="loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p style="margin-top:1rem; font-weight: 600;">Syncing Suzuki Records...</p>
+            </div>
+
+            <table id="audit-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Barcode</th>
+                        <th>Auditor</th>
+                        <th>Location</th>
+                        <th>Proof</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+            authDomain: "sams-e7c4b.firebaseapp.com",
+            projectId: "sams-e7c4b",
+            storageBucket: "sams-e7c4b.firebasestorage.app",
+            messagingSenderId: "829551028089",
+            appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function fetchAuditData() {
+            const city = document.getElementById('city-filter').value;
+            const tbody = document.getElementById('table-body');
+            const loader = document.getElementById('loading');
+            
+            loader.style.display = 'block';
+            tbody.innerHTML = "";
+
+            try {
+                // POINTING TO SUZUKI COLLECTION
+                let query = db.collection('suzuki_audits').orderBy('timestamp', 'desc');
+                if(city) query = query.where('auditLocation_City', '==', city);
+                
+                const snap = await query.limit(30).get();
+                if(snap.empty) tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 40px;'>No Suzuki records found.</td></tr>";
+                
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const dateObj = d.timestamp ? d.timestamp.toDate() : new Date();
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <tr>
+                            <td>
+                                <div style="font-weight:700;">${dateObj.toLocaleDateString('en-GB')}</div>
+                                <div style="font-size:0.8rem; color:#64748b;">${dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                            </td>
+                            <td><span class="barcode-badge">${d.barcodeData || 'N/A'}</span></td>
+                            <td><div style="font-weight:600;">${d.auditBy_Name || 'Unknown'}</div></td>
+                            <td>
+                                <b>${d.auditLocation_City}</b><br>
+                                <small style="color:#64748b;">${d.auditLocation_Branch || ''}</small>
+                            </td>
+                            <td><img src="${d.auditPhotoPath}" class="audit-img" onclick="window.open(this.src)" onerror="this.src='https://via.placeholder.com/48'"></td>
+                            <td><div style="max-width:180px; font-size:0.85rem;">${d.remarks || '-'}</div></td>
+                        </tr>
+                    `);
+                });
+            } finally { loader.style.display = 'none'; }
+        }
+
+        async function freezeAndClear() {
+            const city = document.getElementById('city-filter').value;
+            const btn = document.getElementById('freeze-btn');
+            const tbody = document.getElementById('table-body');
+            
+            if (!confirm(`Confirm: Move Suzuki logs to MySQL and DELETE from Firebase?`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Moving...';
+
+            try {
+                let query = db.collection('suzuki_audits');
+                if(city) query = query.where('auditLocation_City', '==', city);
+                const snap = await query.get();
+
+                if(snap.empty) { alert("Nothing to move!"); btn.disabled = false; return; }
+
+                const records = [];
+                const ids = [];
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    records.push({ ...d, timestamp: d.timestamp ? d.timestamp.toDate().toISOString() : new Date().toISOString() });
+                    ids.push(doc.id);
+                });
+
+                const response = await fetch('http://localhost/sams/Suzuki_Archive.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(records)
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    const batch = db.batch();
+                    ids.forEach(id => batch.delete(db.collection('suzuki_audits').doc(id)));
+                    await batch.commit();
+
+                    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:60px; color:var(--primary); font-weight:700;'>Suzuki data successfully archived.</td></tr>";
+                    alert(result.message);
+                } else { alert("PHP Error: " + result.message); }
+            } catch (err) { alert("Archive Failed. Check XAMPP."); }
+            finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-snowflake"></i> Freeze & Clear'; }
+        }
+
+        window.onload = fetchAuditData;
+    </script>
+    <script src="sidebar.js"></script>
+</body>
+</html>

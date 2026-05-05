@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMS | TV Audit Logs</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --border: #e2e8f0;
+            --sidebar-width: 260px;
+        }
+
+        body { font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; background-color: var(--bg); display: flex; color: var(--text-main); }
+        .main-content { margin-left: var(--sidebar-width); flex-grow: 1; padding: 2rem 3rem; min-height: 100vh; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
+            padding: 1.5rem; border-radius: 16px; border: 1px solid var(--white); box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .controls { display: flex; gap: 12px; align-items: center; }
+
+        select { padding: 10px 15px; border-radius: 10px; border: 1px solid var(--border); outline: none; cursor: pointer; }
+
+        .table-card { background: var(--white); border-radius: 20px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 10px 15px rgba(0,0,0,0.04); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 1.25rem; background: #f1f5f9; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); }
+        td { padding: 1.25rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+
+        .id-badge { font-family: monospace; font-weight: 700; color: var(--primary); background: #eff6ff; padding: 4px 10px; border-radius: 6px; }
+        
+        .btn { padding: 10px 18px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+
+        #loading { padding: 5rem; text-align: center; color: var(--primary); }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <div>
+                <h1 style="margin:0; font-size: 1.7rem;">TV Audit Logs</h1>
+                <p style="margin:0; color: var(--text-muted);">Archive and verification for True Value</p>
+            </div>
+            
+            <div class="controls">
+                <select id="city-filter" onchange="fetchTVLogs()">
+                    <option value="">All Cities</option>
+                    <option value="Ahmedabad">Ahmedabad</option>
+                    <option value="Himmatnagar">Himmatnagar</option>
+                </select>
+
+                <button class="btn btn-danger" onclick="freezeTVData()" id="freeze-btn">
+                    <i class="fas fa-snowflake"></i> Freeze & Clear
+                </button>
+
+                <button class="btn btn-success" onclick="downloadTVCSV()">
+                    <i class="fas fa-file-csv"></i> Export
+                </button>
+
+                <button class="btn btn-primary" onclick="fetchTVLogs()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </header>
+
+        <section class="table-card">
+            <div id="loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin fa-3x"></i>
+                <p>Loading TV records...</p>
+            </div>
+
+            <table id="audit-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>ID Number</th>
+                        <th>Auditor</th>
+                        <th>Branch</th>
+                        <th>Method</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvhfKK1rqYhWhFXQasP-4JdcZBKzXegJ4",
+            authDomain: "sams-e7c4b.firebaseapp.com",
+            projectId: "sams-e7c4b",
+            storageBucket: "sams-e7c4b.firebasestorage.app",
+            messagingSenderId: "829551028089",
+            appId: "1:829551028089:web:f5f66f18f6d0c4466b71a8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function fetchTVLogs() {
+            const city = document.getElementById('city-filter').value;
+            const tbody = document.getElementById('table-body');
+            const loader = document.getElementById('loading');
+            
+            loader.style.display = 'block';
+            tbody.innerHTML = "";
+
+            try {
+                let query = db.collection('tv_audit').orderBy('timestamp', 'desc');
+                if(city) query = query.where('auditLocation_City', '==', city);
+                
+                const snap = await query.limit(50).get();
+                if(snap.empty) tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:3rem;'>No records found.</td></tr>";
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const dt = d.timestamp ? d.timestamp.toDate().toLocaleString('en-GB') : 'N/A';
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <tr>
+                            <td>${dt}</td>
+                            <td><span class="id-badge">${d.idNumber || d.scannedData || 'N/A'}</span></td>
+                            <td><b>${d.auditBy_Name || 'Unknown'}</b></td>
+                            <td>${d.auditLocation_Branch || ''}<br><small>${d.auditLocation_City || ''}</small></td>
+                            <td>${(d.method || 'Manual').toUpperCase()}</td>
+                            <td>${d.remarks || '-'}</td>
+                        </tr>
+                    `);
+                });
+            } finally { loader.style.display = 'none'; }
+        }
+
+        async function freezeTVData() {
+            const city = document.getElementById('city-filter').value;
+            const btn = document.getElementById('freeze-btn');
+            const tbody = document.getElementById('table-body');
+            
+            if (!confirm(`Warning: This moves ${city || 'ALL'} TV Audit records to MySQL and WIPES Firebase collection. Continue?`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Archiving...';
+
+            try {
+                let query = db.collection('tv_audit');
+                if(city) query = query.where('auditLocation_City', '==', city);
+                const snap = await query.get();
+
+                if(snap.empty) { alert("Nothing found to move!"); btn.disabled = false; return; }
+
+                const records = [];
+                const ids = [];
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    records.push({ ...d, timestamp: d.timestamp ? d.timestamp.toDate().toISOString() : new Date().toISOString() });
+                    ids.push(doc.id);
+                });
+
+                const response = await fetch('http://localhost/sams/TV_Audit_Archive.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(records)
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    const batch = db.batch();
+                    ids.forEach(id => batch.delete(db.collection('tv_audit').doc(id)));
+                    await batch.commit();
+
+                    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding:60px; color:var(--success); font-weight:700;'>Data successfully Archived and Firebase Cleared.</td></tr>";
+                    alert(result.message);
+                } else { alert("PHP Error: " + result.message); }
+            } catch (err) { alert("Archive Failed. Check if XAMPP is running."); }
+            finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-snowflake"></i> Freeze & Clear'; }
+        }
+
+        window.onload = fetchTVLogs;
+    </script>
+    <script src="sidebar.js"></script>
+</body>
+</html>
